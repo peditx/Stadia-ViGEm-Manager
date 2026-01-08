@@ -1,0 +1,3 @@
+cd px-stadia-manager
+npm install
+npm run dist:win
