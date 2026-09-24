@@ -1,0 +1,7 @@
+node_modules/
+dist/
+src-tauri/target/
+src-tauri/WixTools/
+*.msi
+*.exe
+.DS_Store
