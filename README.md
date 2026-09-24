@@ -1,4 +1,4 @@
-# Stadia ViGEm Manager
+# Stadia Manager
 
 > Google Stadia controller → Xbox 360/DS4 virtual controller manager
 

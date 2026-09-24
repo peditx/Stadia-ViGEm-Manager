@@ -108,7 +108,7 @@ fn build_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
     let mut builder = TrayIconBuilder::with_id("main")
         .menu(&menu)
         .show_menu_on_left_click(true)
-        .tooltip("Stadia ViGEm Manager")
+        .tooltip("Stadia Manager")
         .on_menu_event(|app, event| match event.id().as_ref() {
             "show" => {
                 if let Some(w) = app.get_webview_window("main") {

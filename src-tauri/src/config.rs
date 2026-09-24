@@ -71,7 +71,7 @@ pub struct MacroStep {
 pub fn config_path() -> String {
     let dir = dirs::config_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join("stadia-vigem-manager");
+        .join("stadia-manager");
     fs::create_dir_all(&dir).ok();
     dir.join("config.json").to_string_lossy().to_string()
 }
@@ -79,7 +79,7 @@ pub fn config_path() -> String {
 pub fn config_dir() -> String {
     dirs::config_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join("stadia-vigem-manager")
+        .join("stadia-manager")
         .to_string_lossy()
         .to_string()
 }

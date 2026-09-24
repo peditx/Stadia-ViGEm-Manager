@@ -270,7 +270,7 @@ pub fn driver_action(name: &str, action: &str, cfg: &AppConfig) -> Result<String
 
 pub fn set_run_on_startup(enabled: bool) -> Result<(), String> {
     const KEY: &str = r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run";
-    const VALUE: &str = "StadiaViGEmManager";
+    const VALUE: &str = "StadiaManager";
 
     if enabled {
         let exe = std::env::current_exe().map_err(|e| e.to_string())?;

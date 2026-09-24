@@ -23,7 +23,7 @@ export default function Header({ theme, themeKey, onThemeChange, onSave }: Heade
   return (
     <header className="h-14 border-b border-white/10 flex items-center justify-between px-6 bg-[#0a0a0a]">
       <div className="flex items-center gap-4">
-        <span className="font-mono text-xs text-gray-500">STADIA VIGEM MANAGER</span>
+        <span className="font-mono text-xs text-gray-500">STADIA MANAGER</span>
         <span className="text-[10px] text-gray-600 font-mono">v2.1.0</span>
       </div>
       <div className="flex items-center gap-6">

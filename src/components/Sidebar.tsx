@@ -27,13 +27,9 @@ export default function Sidebar({ theme, activeTab, onTabChange, configPath }: S
     <aside className="w-60 bg-[#0a0a0a] border-r border-white/10 flex flex-col justify-between shrink-0">
       <div>
         <div className="p-5 flex items-center gap-3 border-b border-white/5">
-          <div
-            className={`w-8 h-8 rounded-lg flex items-center justify-center bg-gradient-to-br ${theme.gradient} text-white font-black text-sm`}
-          >
-            SX
-          </div>
+          <img src="/mark.png" alt="" className="w-8 h-8 rounded-lg shrink-0" />
           <div>
-            <h1 className="font-bold text-sm text-white">SX MANAGER</h1>
+            <h1 className="font-bold text-sm text-white">STADIA MANAGER</h1>
             <span className="text-[10px] text-gray-500 block">v2.1.0 (Stable)</span>
           </div>
         </div>

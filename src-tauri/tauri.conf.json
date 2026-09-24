@@ -1,8 +1,8 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicholasgasior/tauri-config-schema/tauri-v2/schema.json",
-  "productName": "Stadia ViGEm Manager",
+  "productName": "Stadia Manager",
   "version": "2.1.0",
-  "identifier": "ir.peditx.stadia-vigem-manager",
+  "identifier": "ir.peditx.stadia-manager",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -13,7 +13,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "Stadia ViGEm Manager",
+        "title": "Stadia Manager",
         "width": 1280,
         "height": 800,
         "minWidth": 1024,
