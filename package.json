@@ -10,6 +10,8 @@
     "tauri": "tauri"
   },
   "dependencies": {
+    "@fontsource/roboto": "^5.3.0",
+    "@fontsource/roboto-mono": "^5.3.0",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-shell": "^2",
     "lucide-react": "^0.468",

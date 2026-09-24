@@ -13,7 +13,7 @@ import Header from "./components/Header";
 
 export default function App() {
   const [activeTab, setActiveTab] = useState("dashboard");
-  const [themeKey, setThemeKey] = useState<ThemeKey>("blue");
+  const [themeKey, setThemeKey] = useState<ThemeKey>("green");
   const theme = THEMES[themeKey];
   const [config, setConfig] = useState<AppConfig>(DEFAULT_CONFIG);
   const [configPath, setConfigPath] = useState("./config.json");
@@ -89,7 +89,7 @@ export default function App() {
   };
 
   return (
-    <div className="flex h-screen bg-[#0b0c10] text-gray-200 font-sans overflow-hidden select-none">
+    <div className="flex h-screen bg-surface text-on-surface font-sans overflow-hidden select-none">
       <Sidebar
         theme={theme}
         activeTab={activeTab}
@@ -97,15 +97,16 @@ export default function App() {
         configPath={configPath}
       />
 
-      <main className="flex-1 flex flex-col relative overflow-hidden bg-[#111]">
+      <main className="flex-1 flex flex-col relative overflow-hidden bg-surface">
         <Header
           theme={theme}
           themeKey={themeKey}
           onThemeChange={setThemeKey}
           onSave={handleSaveConfig}
+          status={status}
         />
 
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto px-8 py-6">
           {activeTab === "dashboard" && (
             <Dashboard
               theme={theme}

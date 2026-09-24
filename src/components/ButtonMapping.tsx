@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
-import { Gamepad2, Keyboard, Play, FolderOpen, X } from "lucide-react";
+import { Gamepad2, Keyboard, Play, FolderOpen } from "lucide-react";
 import { Theme, AppConfig, Keybind } from "../lib/types";
+import { Overline, IconBtn } from "./ui";
 
 interface ButtonMappingProps {
   theme: Theme;
@@ -14,11 +15,11 @@ export default function ButtonMapping({ theme, config, updateConfig }: ButtonMap
   return (
     <div className="flex flex-col xl:flex-row gap-6 h-full overflow-hidden">
       {/* Keybind List */}
-      <div className="flex-1 bg-[#1a1a1a] rounded-lg border border-white/5 flex flex-col min-h-0">
-        <div className="p-3 border-b border-white/5 bg-[#202020] rounded-t-lg font-bold text-xs text-white">
-          Button Map
+      <div className="flex-1 bg-surface-container border border-outline-variant rounded-md flex flex-col min-h-0">
+        <div className="px-4 py-3 border-b border-outline-variant">
+          <Overline>Button map</Overline>
         </div>
-        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+        <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
           {Object.entries(config.keybinds).map(([key, val]) => (
             <MappingRow
               key={key}
@@ -35,20 +36,20 @@ export default function ButtonMapping({ theme, config, updateConfig }: ButtonMap
       </div>
 
       {/* SVG Controller Schematic */}
-      <div className="w-full xl:w-[580px] shrink-0 h-fit">
-        <div className="bg-[#1a1a1a] rounded-lg border border-white/5 p-6 flex items-center justify-center">
+      <div className="w-full xl:w-[560px] shrink-0 h-fit space-y-4">
+        <div className="bg-surface-container border border-outline-variant rounded-md p-6 flex items-center justify-center">
           <div className="relative w-full aspect-[500/340] max-w-[500px]">
             <svg viewBox="0 0 500 340" className="w-full h-full drop-shadow-xl">
               <defs>
                 <linearGradient id="bodyGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stopColor="#ffffff" />
-                  <stop offset="100%" stopColor="#d1d5db" />
+                  <stop offset="0%" stopColor="#e5e7eb" />
+                  <stop offset="100%" stopColor="#c3c9c6" />
                 </linearGradient>
               </defs>
               <path
                 d="M 140 60 L 360 60 Q 440 60 440 140 L 440 220 Q 440 280 390 280 L 350 280 Q 310 280 310 240 L 310 220 Q 310 200 250 200 Q 190 200 190 220 L 190 240 Q 190 280 150 280 L 110 280 Q 60 280 60 220 L 60 140 Q 60 60 140 60 Z"
                 fill="url(#bodyGrad)"
-                stroke="#cbd5e1"
+                stroke="#9aa39e"
                 strokeWidth="1.5"
               />
             </svg>
@@ -77,13 +78,13 @@ export default function ButtonMapping({ theme, config, updateConfig }: ButtonMap
         </div>
 
         {/* Deadzones */}
-        <div className="bg-[#1a1a1a] mt-4 p-4 rounded-lg border border-white/5">
-          <div className="flex justify-between mb-3">
-            <span className="text-xs text-gray-500 font-bold">DEADZONES</span>
+        <div className="bg-surface-container border border-outline-variant rounded-md p-4">
+          <div className="mb-1">
+            <Overline>Deadzones</Overline>
           </div>
           <div className="grid grid-cols-2 gap-6">
             <div className="flex flex-col items-center">
-              <div className="relative w-16 h-16 bg-[#0b0c10] rounded-full border border-white/10 flex items-center justify-center">
+              <div className="relative w-16 h-16 bg-surface rounded-full border border-outline-variant flex items-center justify-center">
                 <div
                   className={`absolute rounded-full border ${theme.border}`}
                   style={{
@@ -94,17 +95,21 @@ export default function ButtonMapping({ theme, config, updateConfig }: ButtonMap
                 />
                 <div className="w-1 h-1 bg-white rounded-full z-10" />
               </div>
-              <span className="text-xs text-gray-400 mt-2">Left ({config.deadzones.left}%)</span>
+              <span className="text-xs text-on-surface-variant mt-2">
+                Left · {config.deadzones.left}%
+              </span>
               <input
                 type="range"
                 max="50"
                 value={config.deadzones.left}
                 onChange={(e) => updateConfig("deadzones", "left", Number(e.target.value))}
-                className="w-full h-1 bg-black rounded-lg appearance-none cursor-pointer mt-2 accent-blue-500"
+                className="m3-slider w-full"
+                style={{ "--val": `${(config.deadzones.left / 50) * 100}%` } as React.CSSProperties}
+                aria-label="Left stick deadzone"
               />
             </div>
             <div className="flex flex-col items-center">
-              <div className="relative w-16 h-16 bg-[#0b0c10] rounded-full border border-white/10 flex items-center justify-center">
+              <div className="relative w-16 h-16 bg-surface rounded-full border border-outline-variant flex items-center justify-center">
                 <div
                   className={`absolute rounded-full border ${theme.border}`}
                   style={{
@@ -115,13 +120,17 @@ export default function ButtonMapping({ theme, config, updateConfig }: ButtonMap
                 />
                 <div className="w-1 h-1 bg-white rounded-full z-10" />
               </div>
-              <span className="text-xs text-gray-400 mt-2">Right ({config.deadzones.right}%)</span>
+              <span className="text-xs text-on-surface-variant mt-2">
+                Right · {config.deadzones.right}%
+              </span>
               <input
                 type="range"
                 max="50"
                 value={config.deadzones.right}
                 onChange={(e) => updateConfig("deadzones", "right", Number(e.target.value))}
-                className="w-full h-1 bg-black rounded-lg appearance-none cursor-pointer mt-2 accent-blue-500"
+                className="m3-slider w-full"
+                style={{ "--val": `${(config.deadzones.right / 50) * 100}%` } as React.CSSProperties}
+                aria-label="Right stick deadzone"
               />
             </div>
           </div>
@@ -140,9 +149,9 @@ function SBtn({
 }) {
   return (
     <div
-      className={`absolute flex items-center justify-center font-bold transition-all duration-200 border
-        ${active ? "bg-indigo-600 text-white border-transparent scale-110 shadow-lg z-20" : `bg-white border-gray-300 ${darkText ? "text-gray-500" : "text-gray-400"}`}
-        ${round ? "rounded-full" : "rounded-md"}
+      className={`absolute flex items-center justify-center font-medium transition-all duration-200 border
+        ${active ? "bg-primary text-on-primary border-transparent scale-110 shadow-lg z-20" : `bg-white border-gray-300 ${darkText ? "text-gray-500" : "text-gray-400"}`}
+        ${round ? "rounded-full" : "rounded-xs"}
         ${large ? "w-10 h-10 text-xs" : small ? "w-7 h-7 text-[9px]" : "w-8 h-8 text-[10px]"}
       `}
       style={{ left: `${x}%`, top: `${y}%`, transform: "translate(-50%, -50%)" }}
@@ -182,39 +191,45 @@ function MappingRow({
   }, [recording, onChange]);
 
   const getIcon = () => {
-    if (data.mode === "app") return <Play size={12} className="text-green-400" />;
+    if (data.mode === "app") return <Play size={12} className="text-primary" />;
     if (data.mode === "shortcut") return <Keyboard size={12} className="text-purple-400" />;
     return <Gamepad2 size={12} className={theme.text} />;
   };
 
   return (
     <div
-      className={`bg-[#1a1d23] rounded border transition-all ${
-        expanded ? `border-indigo-500/50` : "border-white/5 hover:border-white/20"
+      className={`rounded-sm transition-all border ${
+        expanded ? "border-primary/50 bg-surface-high" : "border-transparent hover:bg-surface-high"
       }`}
       onMouseEnter={() => onHover(data.label)}
       onMouseLeave={() => onHover(null)}
     >
       <div
-        className="p-3 flex justify-between items-center cursor-pointer"
+        className="px-3 py-2.5 flex justify-between items-center cursor-pointer"
         onClick={() => setExpanded(!expanded)}
       >
-        <span className="text-xs font-bold text-gray-300 w-24">{data.label}</span>
-        <div className="flex items-center gap-2 bg-black/40 px-2 py-1 rounded border border-white/5">
+        <span className="text-sm text-on-surface w-28 font-normal">{data.label}</span>
+        <div className="flex items-center gap-2 bg-surface border border-outline-variant px-2.5 h-7 rounded-xs">
           {getIcon()}
-          <span className="text-xs text-white font-mono truncate max-w-[100px]">{data.value}</span>
+          <span className="text-xs text-on-surface font-mono truncate max-w-[110px]">{data.value}</span>
         </div>
       </div>
       {expanded && (
-        <div className="p-3 bg-black/20 border-t border-white/5 space-y-3">
-          <div className="flex bg-black/40 p-1 rounded">
+        <div className="p-3 pt-1 border-t border-outline-variant space-y-3">
+          {/* M3 segmented buttons */}
+          <div className="flex rounded-xs overflow-hidden border border-outline h-8">
             {(["xinput", "app", "shortcut"] as const).map((m) => (
               <button
                 key={m}
                 onClick={() => onChange("mode", m)}
-                className={`flex-1 py-1 text-[10px] uppercase rounded ${
-                  data.mode === m ? "bg-gray-700 text-white" : "text-gray-500"
+                className={`flex-1 text-[11px] uppercase tracking-wide font-medium transition-colors ${
+                  data.mode === m ? "" : "text-on-surface-variant hover:bg-white/5"
                 }`}
+                style={
+                  data.mode === m
+                    ? { backgroundColor: "rgba(68,214,44,0.16)", color: "#B9F5A6" }
+                    : undefined
+                }
               >
                 {m}
               </button>
@@ -224,7 +239,7 @@ function MappingRow({
             <select
               value={data.value}
               onChange={(e) => onChange("value", e.target.value)}
-              className="w-full bg-[#0b0c10] border border-white/10 rounded p-2 text-xs text-white outline-none"
+              className="w-full bg-surface border border-outline rounded-xs px-3 h-9 text-sm text-on-surface outline-none focus:border-2 focus:border-primary appearance-none"
             >
               <optgroup label="Standard Xbox">
                 {["A", "B", "X", "Y", "Start", "Back", "Guide", "LB", "RB", "LT", "RT", "L-Stick", "R-Stick", "Up", "Down", "Left", "Right"].map((o) => (
@@ -242,20 +257,24 @@ function MappingRow({
                 value={data.value}
                 onChange={(e) => onChange("value", e.target.value)}
                 placeholder="full path to .exe"
-                className="flex-1 bg-[#0b0c10] border border-white/10 rounded p-2 text-xs text-white"
+                className="flex-1 min-w-0 bg-surface border border-outline rounded-xs px-3 h-9 text-sm text-on-surface outline-none focus:border-2 focus:border-primary"
               />
               <input type="file" ref={ref} className="hidden" onChange={(e) => e.target.files?.[0] && onChange("value", e.target.files[0].name)} />
-              <button onClick={() => ref.current?.click()} className="p-2 bg-white/10 rounded hover:bg-white/20"><FolderOpen size={14} /></button>
+              <IconBtn onClick={() => ref.current?.click()} className="!border !border-outline !rounded-xs !h-9 !w-9">
+                <FolderOpen size={14} />
+              </IconBtn>
             </div>
           )}
           {data.mode === "shortcut" && (
             <button
               onClick={() => setRecording(!recording)}
-              className={`w-full py-2 rounded text-xs font-bold ${
-                recording ? "bg-red-500 text-white animate-pulse" : "bg-white/5 text-gray-300"
+              className={`w-full h-9 rounded-full text-sm font-medium transition-colors ${
+                recording
+                  ? "bg-error text-black animate-pulse"
+                  : "bg-surface-high text-on-surface hover:bg-surface-highest"
               }`}
             >
-              {recording ? "Press Keys..." : "Record Shortcut"}
+              {recording ? "Press keys…" : "Record shortcut"}
             </button>
           )}
         </div>
