@@ -23,6 +23,7 @@ export default function ButtonMapping({ theme, config, updateConfig }: ButtonMap
           {Object.entries(config.keybinds).map(([key, val]) => (
             <MappingRow
               key={key}
+              id={key}
               theme={theme}
               data={val}
               onChange={(field, value) => {
@@ -35,45 +36,51 @@ export default function ButtonMapping({ theme, config, updateConfig }: ButtonMap
         </div>
       </div>
 
-      {/* SVG Controller Schematic */}
+      {/* Controller photo + hotspots */}
       <div className="w-full xl:w-[560px] shrink-0 h-fit space-y-4">
         <div className="bg-surface-container border border-outline-variant rounded-md p-6 flex items-center justify-center">
-          <div className="relative w-full aspect-[500/340] max-w-[500px]">
-            <svg viewBox="0 0 500 340" className="w-full h-full drop-shadow-xl">
-              <defs>
-                <linearGradient id="bodyGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stopColor="#e5e7eb" />
-                  <stop offset="100%" stopColor="#c3c9c6" />
-                </linearGradient>
-              </defs>
-              <path
-                d="M 140 60 L 360 60 Q 440 60 440 140 L 440 220 Q 440 280 390 280 L 350 280 Q 310 280 310 240 L 310 220 Q 310 200 250 200 Q 190 200 190 220 L 190 240 Q 190 280 150 280 L 110 280 Q 60 280 60 220 L 60 140 Q 60 60 140 60 Z"
-                fill="url(#bodyGrad)"
-                stroke="#9aa39e"
-                strokeWidth="1.5"
-              />
-            </svg>
+          <div className="relative w-full aspect-[1400/1166] max-w-[500px]">
+            <img
+              src="/controller.png"
+              alt="Stadia controller"
+              draggable={false}
+              className="w-full h-full drop-shadow-xl select-none"
+              // The render carries a low-alpha studio haze that would otherwise
+              // show as a hard rectangle on the card; fade it to zero at the frame.
+              style={{
+                WebkitMaskImage: "radial-gradient(ellipse 50% 50% at 50% 47%, #000 70%, transparent 100%)",
+                maskImage: "radial-gradient(ellipse 50% 50% at 50% 47%, #000 70%, transparent 100%)",
+              }}
+            />
 
-            {/* Buttons */}
-            <SBtn label="L2" x={15} y={5} active={hoveredKey === "lTrigger"} />
-            <SBtn label="R2" x={85} y={5} active={hoveredKey === "rTrigger"} />
-            <SBtn label="L1" x={20} y={12} active={hoveredKey === "lBumper"} small darkText />
-            <SBtn label="R1" x={80} y={12} active={hoveredKey === "rBumper"} small darkText />
-            <SBtn label="Y" x={75} y={28} active={hoveredKey === "faceY"} round darkText />
-            <SBtn label="X" x={69} y={35} active={hoveredKey === "faceX"} round darkText />
-            <SBtn label="B" x={81} y={35} active={hoveredKey === "faceB"} round darkText />
-            <SBtn label="A" x={75} y={42} active={hoveredKey === "faceA"} round darkText />
-            <SBtn label="UP" x={25} y={28} active={hoveredKey === "dpadUp"} small />
-            <SBtn label="DWN" x={25} y={42} active={hoveredKey === "dpadDown"} small />
-            <SBtn label="LFT" x={19} y={35} active={hoveredKey === "dpadLeft"} small />
-            <SBtn label="RGT" x={31} y={35} active={hoveredKey === "dpadRight"} small />
-            <SBtn label="S" x={50} y={40} active={hoveredKey === "stadiaBtn"} round large />
-            <SBtn label="OPT" x={38} y={28} active={hoveredKey === "optionsBtn"} small darkText />
-            <SBtn label="MENU" x={62} y={28} active={hoveredKey === "menuBtn"} small darkText />
-            <SBtn label="AST" x={42} y={50} active={hoveredKey === "assistantBtn"} small darkText />
-            <SBtn label="CAP" x={58} y={50} active={hoveredKey === "captureBtn"} small darkText />
-            <SBtn label="L3" x={36} y={62} active={hoveredKey === "lStickClick"} round large />
-            <SBtn label="R3" x={64} y={62} active={hoveredKey === "rStickClick"} round large />
+            {/* Shoulders — sit on the top-edge shoulder arcs */}
+            <SBtn id="lTrigger" label="L2" x={26.5} y={21.5} size="shoulder" active={hoveredKey === "lTrigger"} />
+            <SBtn id="lBumper" label="L1" x={32.5} y={21.5} size="shoulder" active={hoveredKey === "lBumper"} />
+            <SBtn id="rBumper" label="R1" x={67.5} y={21.5} size="shoulder" active={hoveredKey === "rBumper"} />
+            <SBtn id="rTrigger" label="R2" x={73.5} y={21.5} size="shoulder" active={hoveredKey === "rTrigger"} />
+
+            {/* D-pad */}
+            <SBtn id="dpadUp" label="▲" x={28.8} y={28.8} size="dpad" active={hoveredKey === "dpadUp"} />
+            <SBtn id="dpadDown" label="▼" x={28.8} y={34.6} size="dpad" active={hoveredKey === "dpadDown"} />
+            <SBtn id="dpadLeft" label="◀" x={24.7} y={31.5} size="dpad" active={hoveredKey === "dpadLeft"} />
+            <SBtn id="dpadRight" label="▶" x={33.3} y={31.5} size="dpad" active={hoveredKey === "dpadRight"} />
+
+            {/* Face diamond */}
+            <SBtn id="faceY" label="Y" x={71.2} y={26.2} round size="face" active={hoveredKey === "faceY"} />
+            <SBtn id="faceX" label="X" x={66.2} y={31.9} round size="face" active={hoveredKey === "faceX"} />
+            <SBtn id="faceB" label="B" x={76} y={31.9} round size="face" active={hoveredKey === "faceB"} />
+            <SBtn id="faceA" label="A" x={71.5} y={36.9} round size="face" active={hoveredKey === "faceA"} />
+
+            {/* Center cluster */}
+            <SBtn id="optionsBtn" label="OPT" x={41} y={25.5} size="pill" active={hoveredKey === "optionsBtn"} />
+            <SBtn id="menuBtn" label="MNU" x={58.8} y={25.5} size="pill" active={hoveredKey === "menuBtn"} />
+            <SBtn id="stadiaBtn" label="S" x={50} y={43.3} round size="center" active={hoveredKey === "stadiaBtn"} />
+            <SBtn id="assistantBtn" label="AST" x={44.5} y={31.9} size="small" active={hoveredKey === "assistantBtn"} />
+            <SBtn id="captureBtn" label="CAP" x={55.2} y={31.9} size="small" active={hoveredKey === "captureBtn"} />
+
+            {/* Stick clicks */}
+            <SBtn id="lStickClick" label="L3" x={37.7} y={39.6} round size="stick" active={hoveredKey === "lStickClick"} />
+            <SBtn id="rStickClick" label="R3" x={62.4} y={39.6} round size="stick" active={hoveredKey === "rStickClick"} />
           </div>
         </div>
 
@@ -141,19 +148,34 @@ export default function ButtonMapping({ theme, config, updateConfig }: ButtonMap
 }
 
 // --- Schematic Button ---
+// Positions are % of the controller photo container; sizes are px, so the
+// drawing is exact at the container's 500px design width.
+const BTN_SIZES = {
+  shoulder: "w-[24px] h-4 text-[8px]",
+  dpad: "w-[18px] h-[18px] text-[9px]",
+  pill: "w-[32px] h-[18px] text-[8px]",
+  small: "w-6 h-6 text-[8px]",
+  face: "w-7 h-7 text-[10px]",
+  stick: "w-9 h-9 text-[10px]",
+  center: "w-8 h-8 text-[10px]",
+} as const;
+
 function SBtn({
-  label, x, y, active, round, small, large, darkText,
+  id, label, x, y, active, round, size = "face",
 }: {
-  label: string; x: number; y: number; active: boolean;
-  round?: boolean; small?: boolean; large?: boolean; darkText?: boolean;
+  id: string; label: string; x: number; y: number; active: boolean;
+  round?: boolean; size?: keyof typeof BTN_SIZES;
 }) {
+  // Exactly one radius class — rounded-full and rounded-xs can collide in the
+  // generated stylesheet depending on key order.
+  const radius = size === "shoulder" || size === "pill" || round ? "rounded-full" : "rounded-xs";
   return (
     <div
       className={`absolute flex items-center justify-center font-medium transition-all duration-200 border
-        ${active ? "bg-primary text-on-primary border-transparent scale-110 shadow-lg z-20" : `bg-white border-gray-300 ${darkText ? "text-gray-500" : "text-gray-400"}`}
-        ${round ? "rounded-full" : "rounded-xs"}
-        ${large ? "w-10 h-10 text-xs" : small ? "w-7 h-7 text-[9px]" : "w-8 h-8 text-[10px]"}
+        ${active ? "bg-primary text-on-primary border-transparent scale-110 shadow-lg z-20" : "bg-black/70 text-white border-white/50"}
+        ${BTN_SIZES[size]} ${radius}
       `}
+      data-key={id}
       style={{ left: `${x}%`, top: `${y}%`, transform: "translate(-50%, -50%)" }}
     >
       {label}
@@ -163,9 +185,9 @@ function SBtn({
 
 // --- Mapping Row with Expand ---
 function MappingRow({
-  theme, data, onChange, onHover,
+  id, theme, data, onChange, onHover,
 }: {
-  theme: Theme; data: Keybind;
+  id: string; theme: Theme; data: Keybind;
   onChange: (field: string, value: string) => void;
   onHover: (key: string | null) => void;
 }) {
@@ -201,7 +223,7 @@ function MappingRow({
       className={`rounded-sm transition-all border ${
         expanded ? "border-primary/50 bg-surface-high" : "border-transparent hover:bg-surface-high"
       }`}
-      onMouseEnter={() => onHover(data.label)}
+      onMouseEnter={() => onHover(id)}
       onMouseLeave={() => onHover(null)}
     >
       <div
