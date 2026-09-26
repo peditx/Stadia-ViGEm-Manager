@@ -5,8 +5,8 @@ export default defineConfig({
   plugins: [react()],
   clearScreen: false,
   server: {
-    port: 1420,
-    strictPort: true,
+    port: process.env.PORT ? parseInt(process.env.PORT) : 1420,
+    strictPort: !process.env.PORT,
   },
   envPrefix: ["VITE_", "TAURI_"],
   build: {
