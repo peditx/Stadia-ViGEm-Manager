@@ -203,7 +203,7 @@ fn handle(mut stream: TcpStream) -> (String, String, Vec<u8>) {
     if req.method == "GET" && (req.path == "/" || req.path == "/index.html") {
         let html = include_str!("../remote/index.html");
         write_response(&mut stream, "200 OK", "text/html; charset=utf-8", html.as_bytes());
-        return;
+        return ("200 OK".to_string(), "text/html".to_string(), vec![]);
     }
 
     // Route handlers
@@ -311,4 +311,5 @@ fn handle(mut stream: TcpStream) -> (String, String, Vec<u8>) {
     };
 
     write_response(&mut stream, &status, &ctype, &body);
+    (status, ctype, body)
 }
