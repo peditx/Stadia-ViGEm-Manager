@@ -2,6 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Material 3 accent roles. Defaults match the green theme so the UI is
+   correct before JS runs; App.tsx overwrites these on theme change. */
+:root {
+  --m3-primary: #44d62c;
+  --m3-on-primary: #0a1f06;
+  --m3-primary-container: #123a18;
+  --m3-on-primary-container: #b9f5a6;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -25,7 +34,7 @@ button:focus-visible,
 input:focus-visible,
 select:focus-visible,
 a:focus-visible {
-  outline: 2px solid #44d62c;
+  outline: 2px solid var(--m3-primary);
   outline-offset: 2px;
 }
 
@@ -44,7 +53,7 @@ a:focus-visible {
   background: #3d4743;
 }
 ::selection {
-  background: rgba(68, 214, 44, 0.35);
+  background: color-mix(in srgb, var(--m3-primary) 35%, transparent);
   color: white;
 }
 
@@ -62,8 +71,8 @@ a:focus-visible {
   border-radius: 2px;
   background: linear-gradient(
     to right,
-    #44d62c 0%,
-    #44d62c var(--val, 0%),
+    var(--m3-primary) 0%,
+    var(--m3-primary) var(--val, 0%),
     #242b29 var(--val, 0%),
     #242b29 100%
   );
@@ -75,15 +84,15 @@ a:focus-visible {
   height: 16px;
   margin-top: -6px;
   border-radius: 50%;
-  background: #44d62c;
+  background: var(--m3-primary);
   border: none;
   transition: box-shadow 0.15s;
 }
 .m3-slider:hover::-webkit-slider-thumb {
-  box-shadow: 0 0 0 12px rgba(68, 214, 44, 0.12);
+  box-shadow: 0 0 0 12px color-mix(in srgb, var(--m3-primary) 12%, transparent);
 }
 .m3-slider:active::-webkit-slider-thumb {
-  box-shadow: 0 0 0 16px rgba(68, 214, 44, 0.16);
+  box-shadow: 0 0 0 16px color-mix(in srgb, var(--m3-primary) 16%, transparent);
 }
 .m3-slider::-moz-range-track {
   height: 4px;
@@ -93,12 +102,27 @@ a:focus-visible {
 .m3-slider::-moz-range-progress {
   height: 4px;
   border-radius: 2px;
-  background: #44d62c;
+  background: var(--m3-primary);
 }
 .m3-slider::-moz-range-thumb {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: #44d62c;
+  background: var(--m3-primary);
   border: none;
+}
+
+/* Toast slide-in animation */
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+.animate-slide-in {
+  animation: slide-in 0.3s ease-out forwards;
 }

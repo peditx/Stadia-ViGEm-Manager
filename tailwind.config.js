@@ -4,11 +4,12 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Material 3 dark color roles, green hue (Razer-style accent)
-        primary: "#44D62C",
-        "on-primary": "#0A1F06",
-        "primary-container": "#123A18",
-        "on-primary-container": "#B9F5A6",
+        // Material 3 accent roles — CSS vars so the theme picker drives them.
+        primary: "var(--m3-primary)",
+        "on-primary": "var(--m3-on-primary)",
+        "primary-container": "var(--m3-primary-container)",
+        "on-primary-container": "var(--m3-on-primary-container)",
+        // Neutral scale — intentionally not themed (dark theme reads better gray).
         surface: "#111514",
         "surface-low": "#0E1211",
         "surface-container": "#161B19",

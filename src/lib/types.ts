@@ -29,6 +29,7 @@ export interface DeadzonesConfig {
 export interface MobileConfig {
   enabled: boolean;
   port: number;
+  token: string;
 }
 
 export type KeybindMode = "xinput" | "app" | "shortcut";
@@ -68,7 +69,7 @@ export interface ControllerStatus {
   driverCore: boolean;
   mobileService: boolean;
   controller: "searching" | "connected" | "disconnected";
-  /** -1 = unknown (Stadia pads expose no battery over HID) */
+  /** Charge 0-100, or -1 when the controller reports no battery. */
   battery: number;
   connection: "USB" | "Bluetooth" | "None";
   deviceCount: number;

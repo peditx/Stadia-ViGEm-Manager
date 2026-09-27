@@ -15,6 +15,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   mobile: {
     enabled: false,
     port: 9090,
+    token: "",
   },
   macrosEnabled: true,
   keybinds: {

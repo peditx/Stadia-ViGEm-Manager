@@ -80,6 +80,8 @@ struct engine_device_info
 {
     unsigned long long id;
     INT is_bluetooth;
+    /* Charge 0-100, or -1 when the controller does not report one. */
+    INT battery;
 };
 
 struct engine_macro_step

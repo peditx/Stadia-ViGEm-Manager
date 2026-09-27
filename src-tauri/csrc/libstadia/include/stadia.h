@@ -61,6 +61,8 @@ struct stadia_controller
 
     BOOL active;
     BOOL is_bluetooth;
+    /* Charge level refreshed by the input thread; -1 = not reported. */
+    volatile LONG battery;
     HANDLE stopping_event;
     HANDLE output_event;
 

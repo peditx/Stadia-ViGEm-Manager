@@ -40,6 +40,8 @@ pub struct DeadzonesConfig {
 pub struct MobileConfig {
     pub enabled: bool,
     pub port: u16,
+    #[serde(default)]
+    pub token: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -125,7 +127,7 @@ fn default_config() -> AppConfig {
         system: SystemConfig { run_on_startup: true },
         vibration: VibrationConfig { strength: 100 },
         deadzones: DeadzonesConfig { left: 10, right: 10, triggers: 5 },
-        mobile: MobileConfig { enabled: false, port: 9090 },
+        mobile: MobileConfig { enabled: false, port: 9090, token: String::new() },
         macros_enabled: true,
         keybinds,
         macros: vec![MacroDef {

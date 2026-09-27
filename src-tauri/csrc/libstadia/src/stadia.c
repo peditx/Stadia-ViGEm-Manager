@@ -19,6 +19,9 @@
 
 #define STADIA_VIBRATION_IDENTIFIER 0x05
 
+/* How often to re-read the charge level (only if the descriptor has one). */
+#define STADIA_BATTERY_INTERVAL 5000
+
 /* Global callback function pointers */
 stadia_update_cb_t stadia_update_callback = NULL;
 stadia_destroy_cb_t stadia_destroy_callback = NULL;
@@ -67,6 +70,7 @@ static DWORD WINAPI _stadia_input_thread(LPVOID lparam)
 {
     struct stadia_controller *controller = (struct stadia_controller *)lparam;
     INT bytes_read = 0;
+    DWORD last_battery_poll = GetTickCount() - STADIA_BATTERY_INTERVAL;
 
     while (controller->active)
     {
@@ -76,6 +80,14 @@ static DWORD WINAPI _stadia_input_thread(LPVOID lparam)
         if (bytes_read < 0)
         {
             break;
+        }
+
+        /* Refresh charge level off the input cadence; a pad that reports no
+           battery costs one branch here and nothing on the wire. */
+        if (GetTickCount() - last_battery_poll >= STADIA_BATTERY_INTERVAL)
+        {
+            last_battery_poll = GetTickCount();
+            InterlockedExchange(&controller->battery, hid_get_battery(controller->device));
         }
 
         /* check packet header */
@@ -180,6 +192,7 @@ struct stadia_controller *stadia_controller_create(struct hid_device *device)
     controller->device = device;
     controller->active = TRUE;
     controller->is_bluetooth = _is_bluetooth_path(device->path);
+    controller->battery = -1;
 
     InitializeSRWLock(&controller->state_lock);
     InitializeSRWLock(&controller->vibration_lock);

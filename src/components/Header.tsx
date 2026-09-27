@@ -10,9 +10,11 @@ interface HeaderProps {
   onThemeChange: (key: ThemeKey) => void;
   onSave: () => void;
   status: ControllerStatus;
+  /** Live edits are already applied; this only flags "not written to disk yet". */
+  dirty?: boolean;
 }
 
-export default function Header({ theme, themeKey, onThemeChange, onSave, status }: HeaderProps) {
+export default function Header({ theme, themeKey, onThemeChange, onSave, status, dirty }: HeaderProps) {
   const [showThemeMenu, setShowThemeMenu] = useState(false);
   const [time, setTime] = useState(new Date());
 
@@ -46,6 +48,7 @@ export default function Header({ theme, themeKey, onThemeChange, onSave, status 
             {time.toLocaleDateString()}
           </span>
         </div>
+        {dirty && <Chip tone="neutral" pulse>Applied · unsaved</Chip>}
         <div className="relative">
           <IconBtn onClick={() => setShowThemeMenu(!showThemeMenu)} aria-label="Accent color">
             <Palette size={18} />

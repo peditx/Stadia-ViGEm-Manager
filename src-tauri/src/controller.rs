@@ -45,6 +45,7 @@ pub struct EngineHost {
 pub struct EngineDeviceInfo {
     pub id: u64,
     pub is_bluetooth: i32,
+    pub battery: i32,
 }
 
 #[repr(C)]
@@ -80,7 +81,7 @@ pub struct ControllerStatus {
     pub driver_core: bool,
     pub mobile_service: bool,
     pub controller: String,
-    pub battery: i32, // -1 = unknown (Stadia pads expose no battery over HID)
+    pub battery: i32, // -1 = unknown (pad did not expose a battery usage)
     pub connection: String,
     pub device_count: i32,
     pub local_ip: String,
@@ -89,6 +90,17 @@ pub struct ControllerStatus {
 #[derive(Clone, Copy, Debug)]
 pub struct DeviceInfo {
     pub is_bluetooth: bool,
+    /// Charge 0-100, or -1 when the controller reports none.
+    pub battery: i32,
+}
+
+/// A keybind the engine could not honour. Surfaced to the UI so a bad value
+/// reads as "invalid" instead of "the app is broken".
+#[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct BindWarning {
+    pub key: String,
+    pub message: String,
 }
 
 static CORE_RUNNING: AtomicBool = AtomicBool::new(false);
@@ -150,18 +162,23 @@ pub fn refresh() {
 }
 
 pub fn device_infos() -> Vec<DeviceInfo> {
-    let mut buf = [EngineDeviceInfo { id: 0, is_bluetooth: 0 }; 4];
+    let mut buf = [EngineDeviceInfo { id: 0, is_bluetooth: 0, battery: -1 }; 4];
     let n = unsafe { engine_copy_devices(buf.as_mut_ptr(), buf.len() as i32) };
     buf[..n.max(0) as usize]
         .iter()
-        .map(|d| DeviceInfo { is_bluetooth: d.is_bluetooth != 0 })
+        .map(|d| DeviceInfo {
+            is_bluetooth: d.is_bluetooth != 0,
+            battery: d.battery,
+        })
         .collect()
 }
 
 // ==================== Config application ====================
 
-pub fn apply_config(cfg: &AppConfig) {
-    let binds = build_binds(cfg);
+/// Push the config into the C engine. Returns one warning per keybind that
+/// could not be turned into a bind (see `build_binds`).
+pub fn apply_config(cfg: &AppConfig) -> Vec<BindWarning> {
+    let (binds, warnings) = build_binds(cfg);
     unsafe {
         engine_set_binds(binds.as_ptr(), binds.len() as i32);
         engine_set_deadzones(
@@ -171,6 +188,7 @@ pub fn apply_config(cfg: &AppConfig) {
         );
         engine_set_vibration_strength(cfg.vibration.strength.min(100));
     }
+    warnings
 }
 
 fn stadia_mask_for(key: &str) -> Option<u32> {
@@ -241,6 +259,8 @@ fn vk_for_token(token: &str) -> Option<u32> {
         }
     }
     Some(match upper.as_str() {
+        // "Plus": the recorder cannot emit a bare "+", parse_shortcut splits on it.
+        "PLUS" => 0xBB,
         "ENTER" | "RETURN" => 0x0D,
         "SPACE" => 0x20,
         "ESC" | "ESCAPE" => 0x1B,
@@ -274,7 +294,9 @@ fn parse_shortcut(s: &str) -> Option<(u32, u32)> {
             "CTRL" | "CONTROL" => modifiers |= 0x2,
             "SHIFT" => modifiers |= 0x4,
             "ALT" => modifiers |= 0x1,
-            "WIN" | "WINDOWS" => modifiers |= 0x8,
+            // META/WINKEY: what the frontend recorder emits for the Windows key
+            // on some platforms — without these the bind is dropped silently.
+            "WIN" | "WINDOWS" | "META" | "WINKEY" | "SUPER" => modifiers |= 0x8,
             _ => {
                 if seen_key {
                     return None; // one non-modifier key per shortcut
@@ -298,31 +320,57 @@ fn wide(s: &str) -> [u16; 260] {
     arr
 }
 
-pub fn build_binds(cfg: &AppConfig) -> Vec<EngineBind> {
+/// Builds the engine bind table, plus a warning for every keybind that could
+/// not be represented. Without these a bad value silently vanishes and the
+/// button just does nothing.
+pub fn build_binds(cfg: &AppConfig) -> (Vec<EngineBind>, Vec<BindWarning>) {
     let mut out = Vec::new();
+    let mut warnings = Vec::new();
+
     for (key, kb) in &cfg.keybinds {
         let mask = match stadia_mask_for(key) {
             Some(m) => m,
-            None => continue,
-        };
-        match kb.mode.as_str() {
-            "xinput" => {
-                if let Some(xusb) = xusb_for_value(&kb.value) {
-                    out.push(EngineBind { stadia_mask: mask, mode: 0, xusb, ..Default::default() });
-                }
-            }
-            "shortcut" => {
-                if let Some((modifiers, vk)) = parse_shortcut(&kb.value) {
-                    out.push(EngineBind {
-                        stadia_mask: mask,
-                        mode: 1,
-                        modifiers,
-                        vk,
-                        ..Default::default()
+            None => {
+                // Triggers stay analog passthrough — an intentional no-op, not a
+                // mistake. Anything else here is a bad key id.
+                if key != "lTrigger" && key != "rTrigger" {
+                    warnings.push(BindWarning {
+                        key: key.clone(),
+                        message: format!("\"{}\" is not a Stadia button", key),
                     });
                 }
+                continue;
             }
+        };
+
+        match kb.mode.as_str() {
+            "xinput" => match xusb_for_value(&kb.value) {
+                Some(xusb) => out.push(EngineBind {
+                    stadia_mask: mask,
+                    mode: 0,
+                    xusb,
+                    ..Default::default()
+                }),
+                None => warnings.push(BindWarning {
+                    key: key.clone(),
+                    message: format!("\"{}\" is not an Xbox button", kb.value),
+                }),
+            },
+            "shortcut" => match parse_shortcut(&kb.value) {
+                Some((modifiers, vk)) => out.push(EngineBind {
+                    stadia_mask: mask,
+                    mode: 1,
+                    modifiers,
+                    vk,
+                    ..Default::default()
+                }),
+                None => warnings.push(BindWarning {
+                    key: key.clone(),
+                    message: format!("\"{}\" is not a valid shortcut", kb.value),
+                }),
+            },
             "app" => {
+                // Clearing the field is deliberate — no warning.
                 if !kb.value.trim().is_empty() {
                     out.push(EngineBind {
                         stadia_mask: mask,
@@ -332,10 +380,15 @@ pub fn build_binds(cfg: &AppConfig) -> Vec<EngineBind> {
                     });
                 }
             }
-            _ => {}
+            other => warnings.push(BindWarning {
+                key: key.clone(),
+                message: format!("Unknown binding mode \"{}\"", other),
+            }),
         }
     }
-    out
+
+    warnings.sort_by(|a, b| a.key.cmp(&b.key));
+    (out, warnings)
 }
 
 // ==================== Rumble / macros ====================
@@ -412,7 +465,12 @@ pub fn build_status() -> ControllerStatus {
         driver_core: is_running() && crate::vigem::connected(),
         mobile_service: crate::mobile::is_running(),
         controller: if count > 0 { "connected".into() } else { "disconnected".into() },
-        battery: -1,
+        battery: devices
+            .iter()
+            .map(|d| d.battery)
+            .filter(|b| *b >= 0)
+            .min()
+            .unwrap_or(-1),
         connection: if usb {
             "USB".into()
         } else if bt {

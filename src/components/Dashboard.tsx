@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import {
   Gamepad2,
   BatteryCharging,
+  BatteryWarning,
   Bluetooth,
   Cpu,
   Globe,
@@ -31,8 +32,15 @@ export default function Dashboard({
   configPath,
 }: DashboardProps) {
   const connected = status.controller === "connected";
-  const battery =
-    status.battery >= 0 ? `${status.battery}%` : connected ? "AC" : "—";
+  const hasBattery = status.battery >= 0;
+  // USB = mains-powered. BT with no reading = unknown. Never fabricate "AC".
+  const battery = hasBattery
+    ? `${status.battery}%`
+    : connected && status.connection === "USB"
+      ? "AC (mains)"
+      : connected
+        ? "Unknown"
+        : "—";
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -77,10 +85,22 @@ export default function Dashboard({
           theme={theme}
           label="Power"
           value={battery}
-          icon={<BatteryCharging size={20} />}
+          icon={
+            connected && !hasBattery ? (
+              <BatteryWarning size={20} />
+            ) : (
+              <BatteryCharging size={20} />
+            )
+          }
           active={connected}
           color="blue"
-          subtext={connected ? "No battery reading over HID" : undefined}
+          subtext={
+            !connected
+              ? undefined
+              : hasBattery
+                ? "Controller charge"
+                : "Not reported by this controller"
+          }
         />
         <StatusCard
           theme={theme}

@@ -12,6 +12,7 @@
 #include <initguid.h>
 #include <windows.h>
 #include <hidsdi.h>
+#include <hidpi.h>
 #include <setupapi.h>
 #include <devpkey.h>
 #include <cfgmgr32.h>
@@ -302,6 +303,70 @@ void hid_free_device_info(struct hid_device_info *device_info)
     free(device_info);
 }
 
+/* HID battery usages worth honouring: Power Device / Battery Strength and
+   Battery System / Remaining Capacity. Everything else is not a charge level. */
+#define HID_PAGE_POWER_DEVICE 0x06
+#define HID_USAGE_BATTERY_STRENGTH 0x20
+#define HID_PAGE_BATTERY_SYSTEM 0x8506
+#define HID_USAGE_REMAINING_CAPACITY 0x66
+
+/*
+ * Look for a battery usage while the preparsed data is still live. Returns
+ * TRUE when one was found, in which case the caller must keep `pp_data`
+ * around for HidP_GetUsageValue. A pad with no battery usage is the common
+ * case -- nothing changes for it beyond these few comparisons.
+ */
+static BOOL _probe_battery(struct hid_device *dev, PHIDP_PREPARSED_DATA pp_data)
+{
+    HIDP_VALUE_CAPS caps[16];
+    const HIDP_REPORT_TYPE types[2] = {HidP_Feature, HidP_Input};
+    int t;
+
+    for (t = 0; t < 2; t++)
+    {
+        USHORT len = (USHORT)(sizeof(caps) / sizeof(caps[0]));
+        USHORT i;
+        if (HidP_GetValueCaps(types[t], caps, &len, pp_data) != HIDP_STATUS_SUCCESS)
+            continue;
+        for (i = 0; i < len; i++)
+        {
+            USAGE page = caps[i].UsagePage;
+            USAGE usage = caps[i].IsRange ? caps[i].Range.UsageMin : caps[i].NotRange.Usage;
+            BOOL hit = (page == HID_PAGE_POWER_DEVICE && usage == HID_USAGE_BATTERY_STRENGTH) ||
+                       (page == HID_PAGE_BATTERY_SYSTEM && usage == HID_USAGE_REMAINING_CAPACITY);
+            if (!hit) continue;
+
+            dev->has_battery = TRUE;
+            dev->pp_data = pp_data;
+            dev->battery_page = page;
+            dev->battery_link = caps[i].LinkCollection;
+            dev->battery_usage = usage;
+            dev->battery_report_id = caps[i].ReportID;
+            dev->battery_is_feature = (types[t] == HidP_Feature);
+            dev->battery_logical_max = caps[i].LogicalMax;
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
+
+/* Scale a raw HID value onto 0-100 using the descriptor's logical range. */
+static INT _battery_percent(LONG value, LONG logical_max)
+{
+    LONG pct;
+    if (logical_max > 0 && logical_max != 100)
+    {
+        pct = (LONG)(((long long)value * 100) / logical_max);
+    }
+    else
+    {
+        pct = value;
+    }
+    if (pct < 0) pct = 0;
+    if (pct > 100) pct = 100;
+    return (INT)pct;
+}
+
 struct hid_device *hid_open_device(LPTSTR path, BOOL access_rw, BOOL shared)
 {
     DWORD desired_access = access_rw ? (GENERIC_WRITE | GENERIC_READ) : 0;
@@ -361,7 +426,20 @@ struct hid_device *hid_open_device(LPTSTR path, BOOL access_rw, BOOL shared)
     dev->output_buffer = (BYTE *)malloc(caps.OutputReportByteLength);
     dev->feature_buffer = (BYTE *)malloc(caps.FeatureReportByteLength);
 
-    HidD_FreePreparsedData(pp_data);
+    dev->has_battery = FALSE;
+    dev->pp_data = NULL;
+    dev->battery_page = 0;
+    dev->battery_link = 0;
+    dev->battery_usage = 0;
+    dev->battery_report_id = 0;
+    dev->battery_is_feature = FALSE;
+    dev->battery_logical_max = 0;
+    dev->battery = -1;
+    /* Kept alive only when a battery usage was found; see hid_free_device. */
+    if (!_probe_battery(dev, pp_data))
+    {
+        HidD_FreePreparsedData(pp_data);
+    }
 
     memset(&dev->input_ol, 0, sizeof(OVERLAPPED));
     dev->input_ol.hEvent = CreateEvent(&security, FALSE, FALSE, NULL);
@@ -454,6 +532,62 @@ INT hid_send_output_report(struct hid_device *device, const void *data, size_t l
     return -1;
 }
 
+INT hid_get_battery(struct hid_device *device)
+{
+    HIDP_REPORT_TYPE type;
+    PCHAR report;
+    ULONG length;
+    ULONG value = 0;
+    NTSTATUS status;
+    BYTE *scratch;
+
+    if (device == NULL || !device->has_battery || device->pp_data == NULL)
+    {
+        return -1;
+    }
+
+    type = device->battery_is_feature ? HidP_Feature : HidP_Input;
+
+    if (type == HidP_Feature)
+    {
+        length = device->feature_report_size;
+        if (length == 0 || length > 256) return -1;
+        scratch = device->feature_buffer;
+        memset(scratch, 0, length);
+        scratch[0] = device->battery_report_id;
+        if (!HidD_GetFeature(device->handle, scratch, length))
+        {
+            /* Descriptor promised a battery the device won't hand over.
+               Stop trying rather than stall the input thread forever. */
+            device->has_battery = FALSE;
+            return -1;
+        }
+    }
+    else
+    {
+        length = device->input_report_size;
+        if (length == 0 || length > 256) return -1;
+        if (device->battery_report_id != 0 &&
+            device->input_buffer[0] != device->battery_report_id)
+        {
+            return device->battery;
+        }
+        scratch = device->input_buffer;
+    }
+
+    report = (PCHAR)scratch;
+    status = HidP_GetUsageValue(type, device->battery_page, device->battery_link,
+                                device->battery_usage, &value, (PHIDP_PREPARSED_DATA)device->pp_data,
+                                report, length);
+    if (status != HIDP_STATUS_SUCCESS)
+    {
+        return device->battery;
+    }
+
+    device->battery = _battery_percent((LONG)value, device->battery_logical_max);
+    return device->battery;
+}
+
 void hid_close_device(struct hid_device *device)
 {
     if (device == NULL) return;
@@ -466,6 +600,7 @@ void hid_close_device(struct hid_device *device)
 void hid_free_device(struct hid_device *device)
 {
     if (device == NULL) return;
+    if (device->pp_data) HidD_FreePreparsedData((PHIDP_PREPARSED_DATA)device->pp_data);
     if (device->path) free(device->path);
     if (device->input_buffer) free(device->input_buffer);
     if (device->output_buffer) free(device->output_buffer);

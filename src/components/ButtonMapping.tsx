@@ -7,9 +7,43 @@ interface ButtonMappingProps {
   theme: Theme;
   config: AppConfig;
   updateConfig: (section: string | null, key: string, value: unknown) => void;
+  warnings: Record<string, string>;
 }
 
-export default function ButtonMapping({ theme, config, updateConfig }: ButtonMappingProps) {
+/* `KeyboardEvent.key` spellings the backend's vk_for_token does not take
+   as-is (it wants Space / Ins / PgDn …). Everything else upper-cases fine. */
+const SHORTCUT_KEYS: Record<string, string> = {
+  " ": "Space",
+  "+": "Plus",
+  Insert: "Ins",
+  PageUp: "PgUp",
+  PageDown: "PgDn",
+};
+
+/* Ready-made combos — every key here round-trips through parse_shortcut().
+   Keep in sync with vk_for_token() in src-tauri/src/controller.rs. */
+const SHORTCUT_PRESETS = [
+  "Win + D",
+  "Win + E",
+  "Win + L",
+  "Win + R",
+  "Win + S",
+  "Win + Shift + S",
+  "Win + A",
+  "Win + I",
+  "Win + M",
+  "Win + Tab",
+  "Ctrl + Shift + Esc",
+  "Alt + Tab",
+  "Alt + F4",
+  "Ctrl + C",
+  "Ctrl + V",
+  "Ctrl + X",
+  "Ctrl + Z",
+  "Ctrl + A",
+];
+
+export default function ButtonMapping({ theme, config, updateConfig, warnings }: ButtonMappingProps) {
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
 
   return (
@@ -31,6 +65,7 @@ export default function ButtonMapping({ theme, config, updateConfig }: ButtonMap
                 updateConfig(null, "keybinds", newKeybinds);
               }}
               onHover={setHoveredKey}
+              warnings={warnings}
             />
           ))}
         </div>
@@ -189,11 +224,12 @@ function SBtn({
 
 // --- Mapping Row with Expand ---
 function MappingRow({
-  id, theme, data, onChange, onHover,
+  id, theme, data, onChange, onHover, warnings,
 }: {
   id: string; theme: Theme; data: Keybind;
   onChange: (field: string, value: string) => void;
   onHover: (key: string | null) => void;
+  warnings: Record<string, string>;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [recording, setRecording] = useState(false);
@@ -203,12 +239,17 @@ function MappingRow({
     if (!recording) return;
     const handler = (e: KeyboardEvent) => {
       e.preventDefault();
+      if (e.repeat) return;
+      // Bare modifier press — keep waiting for the actual key.
+      if (["Control", "Shift", "Alt", "Meta"].includes(e.key)) return;
       const keys: string[] = [];
       if (e.ctrlKey) keys.push("Ctrl");
       if (e.shiftKey) keys.push("Shift");
       if (e.altKey) keys.push("Alt");
-      if (["Control", "Shift", "Alt"].includes(e.key)) return;
-      keys.push(e.key.toUpperCase());
+      // Win key: without this the combo is recorded as a bare key and the
+      // backend silently drops it (see parse_shortcut).
+      if (e.metaKey) keys.push("Win");
+      keys.push(SHORTCUT_KEYS[e.key] ?? e.key.toUpperCase());
       onChange("value", keys.join("+"));
       setRecording(false);
     };
@@ -238,6 +279,9 @@ function MappingRow({
         <div className="flex items-center gap-2 bg-surface border border-outline-variant px-2.5 h-7 rounded-xs">
           {getIcon()}
           <span className="text-xs text-on-surface font-mono truncate max-w-[110px]">{data.value}</span>
+          {warnings[id] && (
+            <span className="w-1.5 h-1.5 rounded-full bg-error shrink-0" title={warnings[id]} />
+          )}
         </div>
       </div>
       {expanded && (
@@ -253,7 +297,10 @@ function MappingRow({
                 }`}
                 style={
                   data.mode === m
-                    ? { backgroundColor: "rgba(68,214,44,0.16)", color: "#B9F5A6" }
+                    ? {
+                        backgroundColor: "color-mix(in srgb, var(--m3-primary) 16%, transparent)",
+                        color: "var(--m3-on-primary-container)",
+                      }
                     : undefined
                 }
               >
@@ -292,16 +339,39 @@ function MappingRow({
             </div>
           )}
           {data.mode === "shortcut" && (
-            <button
-              onClick={() => setRecording(!recording)}
-              className={`w-full h-9 rounded-full text-sm font-medium transition-colors ${
-                recording
-                  ? "bg-error text-black animate-pulse"
-                  : "bg-surface-high text-on-surface hover:bg-surface-highest"
-              }`}
-            >
-              {recording ? "Press keys…" : "Record shortcut"}
-            </button>
+            <div className="space-y-2">
+              <select
+                value={SHORTCUT_PRESETS.includes(data.value) ? data.value : ""}
+                onChange={(e) => e.target.value && onChange("value", e.target.value)}
+                className="w-full bg-surface border border-outline rounded-xs px-3 h-9 text-sm text-on-surface outline-none focus:border-2 focus:border-primary appearance-none"
+              >
+                <option value="" disabled>
+                  {SHORTCUT_PRESETS.includes(data.value) ? "Preset combo…" : data.value || "Custom combo…"}
+                </option>
+                {!SHORTCUT_PRESETS.includes(data.value) && data.value && (
+                  <option value={data.value}>{data.value}</option>
+                )}
+                {SHORTCUT_PRESETS.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+              {warnings[id] && <p className="text-[11px] text-error">{warnings[id]}</p>}
+              <p className="text-[11px] text-on-surface-variant">
+                Some Windows shortcuts can&apos;t be captured — pick a preset.
+              </p>
+              <button
+                onClick={() => setRecording(!recording)}
+                className={`w-full h-9 rounded-full text-sm font-medium transition-colors ${
+                  recording
+                    ? "bg-error text-black animate-pulse"
+                    : "bg-surface-high text-on-surface hover:bg-surface-highest"
+                }`}
+              >
+                {recording ? "Press keys…" : "Record shortcut"}
+              </button>
+            </div>
           )}
         </div>
       )}

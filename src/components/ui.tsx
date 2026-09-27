@@ -1,5 +1,5 @@
-import { useState, ButtonHTMLAttributes } from "react";
-import { RefreshCw } from "lucide-react";
+import { useState, useEffect, useCallback, ButtonHTMLAttributes } from "react";
+import { RefreshCw, X } from "lucide-react";
 import { Theme } from "../lib/types";
 import { onColor } from "../lib/color";
 
@@ -77,7 +77,7 @@ export function Switch({
       onClick={() => onChange(!checked)}
       className="group relative w-[52px] h-8 rounded-full transition-colors duration-200 disabled:opacity-40 flex items-center"
       style={{
-        backgroundColor: checked ? "#44D62C" : "#242B29",
+        backgroundColor: checked ? "var(--m3-primary)" : "#242B29",
         border: checked ? "none" : "2px solid #6A736E",
       }}
     >
@@ -87,17 +87,24 @@ export function Switch({
           width: checked ? 24 : 16,
           height: checked ? 24 : 16,
           left: checked ? 24 : 10,
-          backgroundColor: checked ? "#0A1F06" : "#B3BBB6",
+          backgroundColor: checked ? "var(--m3-on-primary)" : "#B3BBB6",
         }}
       >
         {checked && (
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#44D62C" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--m3-primary)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M20 6 9 17l-5-5" />
           </svg>
         )}
       </span>
       {/* state layer */}
-      <span className="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" style={{ backgroundColor: checked ? "rgba(68,214,44,0.12)" : "rgba(226,230,227,0.06)" }} />
+      <span
+        className="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+        style={{
+          backgroundColor: checked
+            ? "color-mix(in srgb, var(--m3-primary) 12%, transparent)"
+            : "rgba(226,230,227,0.06)",
+        }}
+      />
     </button>
   );
 }
@@ -241,6 +248,82 @@ export function ToggleRow({ label, checked, onChange, small }: ToggleRowProps) {
     <div className="flex items-center justify-between gap-4">
       <span className={`text-on-surface ${small ? "text-sm" : "text-[15px]"} font-normal`}>{label}</span>
       <Switch checked={checked} onChange={onChange} label={label} />
+    </div>
+  );
+}
+
+// --- Toast / Notification ---
+interface Toast {
+  id: number;
+  message: string;
+  type: "info" | "success" | "error";
+}
+
+const toasts = [] as Toast[];
+const listeners = new Set<() => void>();
+
+let nextId = 1;
+
+function notify() {
+  listeners.forEach((l) => l());
+}
+
+export function showToast(message: string, type: Toast["type"] = "info") {
+  const id = nextId++;
+  toasts.push({ id, message, type });
+  notify();
+  setTimeout(() => {
+    const idx = toasts.findIndex((t) => t.id === id);
+    if (idx >= 0) {
+      toasts.splice(idx, 1);
+      notify();
+    }
+  }, 4000);
+}
+
+export function useToasts() {
+  const [, forceUpdate] = useState(0);
+  useEffect(() => {
+    const l = () => forceUpdate((n) => n + 1);
+    listeners.add(l);
+    return () => {
+      listeners.delete(l);
+    };
+  }, []);
+  return { toasts, showToast };
+}
+
+export function ToastContainer() {
+  const { toasts } = useToasts();
+  return (
+    <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none">
+      {toasts.map((t) => (
+        <div
+          key={t.id}
+          className={`pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-md shadow-lg border animate-slide-in ${
+            t.type === "success"
+              ? "bg-primary-container text-on-primary-container border-primary/30"
+              : t.type === "error"
+              ? "bg-error/15 text-error border-error/30"
+              : "bg-surface-high text-on-surface border-outline-variant"
+          }`}
+        >
+          <span className="text-sm font-medium">{t.message}</span>
+          <button
+            onClick={() => {
+              const idx = toasts.findIndex((x) => x.id === t.id);
+              if (idx >= 0) {
+                toasts.splice(idx, 1);
+                notify();
+              }
+            }}
+            className="ml-2 p-1 rounded hover:bg-white/10 transition-colors"
+            aria-label="Dismiss"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      ))}
     </div>
   );
 }

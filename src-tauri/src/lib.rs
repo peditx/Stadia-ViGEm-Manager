@@ -6,9 +6,10 @@ mod vigem;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
+use std::sync::OnceLock;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
-use tauri::{Manager, State, WindowEvent};
+use tauri::{Emitter, Manager, State, WindowEvent};
 
 pub struct AppState {
     pub config: Mutex<config::AppConfig>,
@@ -16,10 +17,14 @@ pub struct AppState {
 
 static PUMP_RUNNING: AtomicBool = AtomicBool::new(false);
 
+/// Outcome of pushing a config into the runtime. `path` is set only when the
+/// config was also written to disk; `warnings` lists every keybind the engine
+/// refused, so the UI can mark the row instead of silently doing nothing.
 #[derive(serde::Serialize)]
-pub struct SaveResult {
+pub struct ApplyResult {
     pub success: bool,
-    pub path: String,
+    pub path: Option<String>,
+    pub warnings: Vec<controller::BindWarning>,
 }
 
 // ------------------------- Commands -------------------------
@@ -29,34 +34,63 @@ fn get_config(state: State<AppState>) -> config::AppConfig {
     state.config.lock().unwrap().clone()
 }
 
-#[tauri::command]
-fn save_config(state: State<AppState>, cfg: config::AppConfig) -> Result<SaveResult, String> {
-    config::save_config(&cfg)?;
-    controller::apply_config(&cfg);
+/// Push a config to everything that reads it: engine binds/deadzones/vibration,
+/// the mobile service and the startup registry — everything *except* disk.
+/// Shared by `save_config` (which then persists) and the debounced `apply_live`.
+fn apply(state: &State<AppState>, cfg: &config::AppConfig) -> Vec<controller::BindWarning> {
+    let warnings = controller::apply_config(cfg);
     mobile::set_rumble_strength(cfg.vibration.strength);
 
-    // Startup registry: best effort, never blocks a save.
-    drivers::set_run_on_startup(cfg.system.run_on_startup).ok();
-
-    // Keep the mobile service in line with the toggle.
-    if cfg.mobile.enabled {
-        if !mobile::is_running() {
-            mobile::start(cfg.mobile.port).ok();
-        }
-    } else {
-        mobile::stop();
+    // Startup registry: only write when runOnStartup actually changed
+    // (avoids spawning reg.exe on every deadzone tweak).
+    let old_cfg = state.config.lock().unwrap().clone();
+    if cfg.system.run_on_startup != old_cfg.system.run_on_startup {
+        drivers::set_run_on_startup(cfg.system.run_on_startup).ok();
     }
 
-    *state.config.lock().unwrap() = cfg;
-    Ok(SaveResult { success: true, path: config::config_path() })
+    // Keep the mobile service in line with the toggle/port.
+    mobile::reconcile_mobile(cfg);
+
+    *state.config.lock().unwrap() = cfg.clone();
+    emit_config_changed(cfg);
+    warnings
+}
+
+/// Bridge for mobile.rs to emit config-changed events back to the UI.
+static CONFIG_EMITTER: OnceLock<tauri::AppHandle> = OnceLock::new();
+
+pub fn set_config_emitter(app: tauri::AppHandle) {
+    CONFIG_EMITTER.set(app).ok();
+}
+
+pub fn emit_config_changed(cfg: &config::AppConfig) {
+    if let Some(app) = CONFIG_EMITTER.get() {
+        let _ = app.emit("config-changed", cfg);
+    }
 }
 
 #[tauri::command]
+fn save_config(state: State<AppState>, cfg: config::AppConfig) -> Result<ApplyResult, String> {
+    config::save_config(&cfg)?;
+    let warnings = apply(&state, &cfg);
+    Ok(ApplyResult { success: true, path: Some(config::config_path()), warnings })
+}
+
+/// Fire-and-forget auto-apply from the UI (debounced). Writes nothing.
+#[tauri::command]
+fn apply_live(state: State<AppState>, cfg: config::AppConfig) -> ApplyResult {
+    let warnings = apply(&state, &cfg);
+    ApplyResult { success: true, path: None, warnings }
+}
+
+/// `async` so a slow device teardown inside `engine_refresh` runs off the main
+/// thread — otherwise a disconnect can wedge the whole webview.
+#[tauri::command(async)]
 fn get_status() -> controller::ControllerStatus {
     controller::build_status()
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn refresh_devices() -> controller::ControllerStatus {
     controller::refresh();
     controller::build_status()
@@ -137,7 +171,7 @@ pub fn run() {
     // Bring up the stack; missing drivers are reported through get_status.
     vigem::init().ok();
     controller::start();
-    controller::apply_config(&cfg);
+    let _ = controller::apply_config(&cfg);
     mobile::set_rumble_strength(cfg.vibration.strength);
     if cfg.mobile.enabled {
         mobile::start(cfg.mobile.port).ok();
@@ -165,11 +199,13 @@ pub fn run() {
         })
         .setup(|app| {
             build_tray(app.handle())?;
+            crate::set_config_emitter(app.handle().clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             get_config,
             save_config,
+            apply_live,
             get_status,
             refresh_devices,
             test_rumble,

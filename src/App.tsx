@@ -1,7 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { ThemeKey, AppConfig, ControllerStatus } from "./lib/types";
 import { THEMES } from "./lib/themes";
+import { themeRoles } from "./lib/color";
 import { DEFAULT_CONFIG } from "./lib/config";
 import Sidebar from "./components/Sidebar";
 import Dashboard from "./components/Dashboard";
@@ -10,13 +12,25 @@ import Macros from "./components/Macros";
 import Vibration from "./components/Vibration";
 import MobileRemote from "./components/MobileRemote";
 import Header from "./components/Header";
+import { ToastContainer, showToast } from "./components/ui";
+
+const THEME_KEY = "stadia.theme";
+
+function readTheme(): ThemeKey {
+  const saved = localStorage.getItem(THEME_KEY);
+  return saved && saved in THEMES ? (saved as ThemeKey) : "green";
+}
 
 export default function App() {
   const [activeTab, setActiveTab] = useState("dashboard");
-  const [themeKey, setThemeKey] = useState<ThemeKey>("green");
+  const [themeKey, setThemeKey] = useState<ThemeKey>(readTheme);
   const theme = THEMES[themeKey];
   const [config, setConfig] = useState<AppConfig>(DEFAULT_CONFIG);
   const [configPath, setConfigPath] = useState("./config.json");
+  // Snapshot of the last config written to disk, for the "unsaved" chip.
+  const [savedJson, setSavedJson] = useState("");
+  const hydrated = useRef(false);
+  const applyTimer = useRef<number | undefined>(undefined);
   const [status, setStatus] = useState<ControllerStatus>({
     vigemBus: false,
     hidHide: false,
@@ -28,12 +42,30 @@ export default function App() {
     deviceCount: 0,
     localIp: "127.0.0.1",
   });
+  const [bindWarnings, setBindWarnings] = useState<Record<string, string>>({});
+
+  // Drive the M3 accent roles from the picked theme (see globals.css :root).
+  useEffect(() => {
+    const r = themeRoles(theme.hex);
+    const root = document.documentElement;
+    root.style.setProperty("--m3-primary", r.primary);
+    root.style.setProperty("--m3-on-primary", r.onPrimary);
+    root.style.setProperty("--m3-primary-container", r.primaryContainer);
+    root.style.setProperty("--m3-on-primary-container", r.onPrimaryContainer);
+    localStorage.setItem(THEME_KEY, themeKey);
+  }, [themeKey, theme.hex]);
 
   // Load config once, then poll real status every 2s
   useEffect(() => {
     invoke<AppConfig>("get_config")
-      .then((cfg) => setConfig(cfg))
-      .catch(() => {});
+      .then((cfg) => {
+        hydrated.current = true;
+        setSavedJson(JSON.stringify(cfg));
+        setConfig(cfg);
+      })
+      .catch(() => {
+        hydrated.current = true;
+      });
 
     invoke<string>("get_config_path")
       .then(setConfigPath)
@@ -45,8 +77,40 @@ export default function App() {
         .catch(() => {});
     pull();
     const timer = setInterval(pull, 2000);
-    return () => clearInterval(timer);
+
+    // Listen for config changes from mobile remote
+    let unlisten: UnlistenFn | null = null;
+    listen<AppConfig>("config-changed", (event) => {
+      setConfig(event.payload);
+      setSavedJson(JSON.stringify(event.payload));
+    }).then((fn) => { unlisten = fn; });
+
+    return () => {
+      clearInterval(timer);
+      unlisten?.();
+    };
   }, []);
+
+  // Auto-apply: every edit reaches the engine ~300ms after you stop touching
+  // it. Save only writes the file (so the choice survives a restart).
+  useEffect(() => {
+    if (!hydrated.current) return;
+    window.clearTimeout(applyTimer.current);
+    applyTimer.current = window.setTimeout(() => {
+      invoke<{ warnings: { key: string; message: string }[] }>("apply_live", { cfg: config })
+        .then((r) => {
+          if (r?.warnings) {
+            setBindWarnings((prev) => {
+              const next = { ...prev };
+              for (const w of r.warnings) next[w.key] = w.message;
+              return next;
+            });
+          }
+        })
+        .catch(() => {});
+    }, 300);
+    return () => window.clearTimeout(applyTimer.current);
+  }, [config]);
 
   const updateConfig = (
     section: string | null,
@@ -64,10 +128,19 @@ export default function App() {
 
   const handleSaveConfig = async () => {
     try {
-      const r = await invoke<{ path: string }>("save_config", { cfg: config });
+      const r = await invoke<{ path?: string; warnings: { key: string; message: string }[] }>("save_config", { cfg: config });
       if (r?.path) setConfigPath(r.path);
+      setSavedJson(JSON.stringify(config));
+      if (r?.warnings) {
+        setBindWarnings((prev) => {
+          const next = { ...prev };
+          for (const w of r.warnings) next[w.key] = w.message;
+          return next;
+        });
+      }
+      showToast("Config saved", "success");
     } catch (e) {
-      alert(`Could not save config:\n${String(e)}`);
+      showToast(`Could not save config: ${String(e)}`, "error");
     }
   };
 
@@ -75,17 +148,23 @@ export default function App() {
     try {
       const s = await invoke<ControllerStatus>("refresh_devices");
       setStatus(s);
+      showToast("Devices refreshed", "success");
     } catch (e) {
-      alert(`Refresh failed:\n${String(e)}`);
+      showToast(`Refresh failed: ${String(e)}`, "error");
     }
   };
 
   const handleDriverAction = async (name: string, action: string) => {
-    const msg = await invoke<string>("driver_action", { name, action });
     try {
+      const msg = await invoke<string>("driver_action", { name, action });
       setStatus(await invoke<ControllerStatus>("get_status"));
-    } catch {}
-    return msg;
+      showToast(msg, "success");
+      return msg;
+    } catch (e) {
+      const err = String(e);
+      showToast(err, "error");
+      throw e;
+    }
   };
 
   return (
@@ -104,6 +183,7 @@ export default function App() {
           onThemeChange={setThemeKey}
           onSave={handleSaveConfig}
           status={status}
+          dirty={savedJson !== "" && JSON.stringify(config) !== savedJson}
         />
 
         <div className="flex-1 overflow-y-auto px-8 py-6">
@@ -119,7 +199,7 @@ export default function App() {
             />
           )}
           {activeTab === "mapping" && (
-            <ButtonMapping theme={theme} config={config} updateConfig={updateConfig} />
+            <ButtonMapping theme={theme} config={config} updateConfig={updateConfig} warnings={bindWarnings} />
           )}
           {activeTab === "macros" && (
             <Macros theme={theme} config={config} updateConfig={updateConfig} />
@@ -133,11 +213,11 @@ export default function App() {
               config={config}
               updateConfig={updateConfig}
               status={status}
-              onDriverAction={handleDriverAction}
             />
           )}
         </div>
       </main>
+      <ToastContainer />
     </div>
   );
 }

@@ -22,6 +22,7 @@
 #include "utils.h"
 
 #include <shellapi.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <tchar.h>
@@ -110,18 +111,31 @@ static void _send_key_combo(UINT modifiers, UINT vk)
         n++;
     }
 
-    SendInput((UINT)n, inputs, sizeof(INPUT));
+    /* Injection is all-or-nothing; a partial batch leaves modifiers stuck. */
+    if (SendInput((UINT)n, inputs, sizeof(INPUT)) != n)
+    {
+        fprintf(stderr, "[stadia] SendInput injected %u of %u events\n", (unsigned)SendInput(0, NULL, 0), (unsigned)n);
+    }
 }
 
 static void _fire_bind(const struct engine_bind *bind)
 {
-    if (bind->mode == ENGINE_BIND_SHORTCUT && bind->vk != 0)
+    if (bind->mode == ENGINE_BIND_SHORTCUT)
     {
+        if (bind->vk == 0)
+        {
+            fprintf(stderr, "[stadia] shortcut bind has no key (value did not parse)\n");
+            return;
+        }
         _send_key_combo(bind->modifiers, bind->vk);
     }
     else if (bind->mode == ENGINE_BIND_APP && bind->app[0] != L'\0')
     {
-        ShellExecuteW(NULL, L"open", bind->app, NULL, NULL, SW_SHOWNORMAL);
+        HINSTANCE r = ShellExecuteW(NULL, L"open", bind->app, NULL, NULL, SW_SHOWNORMAL);
+        if ((INT_PTR)r <= 32)
+        {
+            fprintf(stderr, "[stadia] ShellExecuteW failed (%d) for app bind\n", (int)(INT_PTR)r);
+        }
     }
 }
 
@@ -171,6 +185,11 @@ static void _with_inject(struct x360_report *r)
 static void _map_state(struct engine_device *dev, const struct stadia_state *state, struct x360_report *out)
 {
     struct x360_report r;
+    /* Edge-triggered binds are staged here and fired after the lock is
+       released: ShellExecuteW can take hundreds of ms, and holding
+       g_config_lock across it would stall every engine_set_* caller. */
+    struct engine_bind pending[ENGINE_MAX_BINDS];
+    INT pending_count = 0;
     DWORD pressed = state->buttons & ~dev->prev_buttons;
     BYTE lt_a, rt_a;
     INT i;
@@ -192,8 +211,8 @@ static void _map_state(struct engine_device *dev, const struct stadia_state *sta
         }
         else if ((pressed & b->stadia_mask) != 0)
         {
-            /* Fire while holding the config lock so set_binds cannot tear the struct. */
-            _fire_bind(b);
+            /* Copy under the lock so set_binds cannot tear the struct. */
+            if (pending_count < ENGINE_MAX_BINDS) pending[pending_count++] = *b;
         }
     }
 
@@ -207,6 +226,8 @@ static void _map_state(struct engine_device *dev, const struct stadia_state *sta
     r.rx = _stick_value(state->right_stick_x, g_dz_right, FALSE);
     r.ry = _stick_value(state->right_stick_y, g_dz_right, TRUE);
     ReleaseSRWLockShared(&g_config_lock);
+
+    for (i = 0; i < pending_count; i++) _fire_bind(&pending[i]);
 
     AcquireSRWLockExclusive(&g_devices_lock);
     dev->report = r;
@@ -460,6 +481,7 @@ INT engine_copy_devices(struct engine_device_info *out, INT max)
     {
         out[n].id = g_devices[i]->id;
         out[n].is_bluetooth = g_devices[i]->is_bluetooth ? 1 : 0;
+        out[n].battery = (INT)g_devices[i]->controller->battery;
         n++;
     }
     ReleaseSRWLockShared(&g_devices_lock);

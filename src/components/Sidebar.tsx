@@ -46,7 +46,14 @@ export default function Sidebar({ theme, activeTab, onTabChange, configPath }: S
                     ? "text-on-primary-container"
                     : "text-on-surface-variant hover:bg-white/[0.06] hover:text-on-surface"
                 }`}
-                style={active ? { backgroundColor: "rgba(68,214,44,0.14)", color: theme.hex === "#44D62C" ? "#B9F5A6" : theme.hex } : undefined}
+                style={
+                  active
+                    ? {
+                        backgroundColor: "color-mix(in srgb, var(--m3-primary) 14%, transparent)",
+                        color: "var(--m3-on-primary-container)",
+                      }
+                    : undefined
+                }
               >
                 <Icon size={18} strokeWidth={active ? 2.2 : 1.8} /> {label}
               </button>

@@ -210,7 +210,7 @@ pub fn driver_action(name: &str, action: &str, cfg: &AppConfig) -> Result<String
                 let msg = install_vigem()?;
                 vigem::init().ok();
                 controller::start();
-                controller::apply_config(cfg);
+                let _ = controller::apply_config(cfg);
                 Ok(msg)
             }
             "uninstall" => {
@@ -242,7 +242,7 @@ pub fn driver_action(name: &str, action: &str, cfg: &AppConfig) -> Result<String
                     format!("{} — install the ViGEmBus driver first", e)
                 })?;
                 controller::start();
-                controller::apply_config(cfg);
+                let _ = controller::apply_config(cfg);
                 Ok("Controller service started".into())
             }
             other => Err(format!("Unknown action: {}", other)),
