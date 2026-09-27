@@ -1,54 +1,49 @@
 # Stadia Manager
 
-> Google Stadia controller → Xbox 360/DS4 virtual controller manager
+[English](readme-en.md) · [فارسی](readme-fa.md) · [Русский](readme-ru.md)
 
-A modern Tauri desktop app for managing your Google Stadia controller with ViGEm bus driver. Configure button mapping, macros, vibration, deadzones, and more.
+> Google Stadia controller → Xbox 360 virtual controller manager for Windows
 
-## Features
+![Button Mapping](docs/button-mapping.png)
 
-- **Controller Detection** — Auto-detects USB and Bluetooth Stadia controllers
-- **ViGEm Integration** — Maps to Xbox 360 or DualShock 4 virtual controller
-- **Button Remapping** — Full keybind editor with visual SVG controller schematic
-- **Macro Engine** — Record and playback custom macros
-- **Vibration Control** — Test and configure force feedback
-- **Deadzone Adjustment** — Per-stick deadzone configuration
-- **Driver Management** — Install/uninstall ViGEmBus and HidHide drivers
-- **Mobile Remote** — Control settings from your phone
-- **Theme System** — 5 color themes (Blue, Cyan, Orange, Purple, Green)
+**Stadia Manager** is a native Windows desktop app (Tauri v2) that keeps a Google
+Stadia controller alive after Stadia's shutdown: it reads the pad through a C engine,
+lets you remap all 19 inputs on a photo of the controller, and feeds games a standard
+**Xbox 360** virtual pad through ViGEmBus.
 
-## Tech Stack
+- **System Status** — live ViGEmBus / HidHide status, battery, connection type, one-click driver install
+- **Button Mapping** — photo hotspots, three modes per button (xinput · app · shortcut), deadzones
+- **Macros** — multi-step `press`/`wait` macros, one-click playback
+- **Vibration** — rumble test and strength (USB only; Windows can't rumble over Bluetooth)
+- **Remote Access** — small HTTP server (port `9090`) for status and rumble from your phone
+- **Themes** — five color themes, tray icon with Show / Refresh / Quit
 
-- **Backend:** C (HID engine: libstadia + engine) via FFI, driven by Rust (Tauri v2 + vigem-client)
-- **Frontend:** React + TypeScript + Tailwind CSS
-- **Build:** GitHub Actions CI → Windows .exe/.msi (never built locally)
+## Full documentation
 
-## Development
+| | |
+| --- | --- |
+| 🇬🇧 English | [readme-en.md](readme-en.md) |
+| 🇮🇷 فارسی | [readme-fa.md](readme-fa.md) |
+| 🇷🇺 Русский | [readme-ru.md](readme-ru.md) |
 
-### Prerequisites
-
-- [Node.js](https://nodejs.org/) 20+
-- [Rust](https://rustup.rs/) (stable)
-- [Tauri Prerequisites](https://v2.tauri.app/start/prerequisites/)
-
-### Setup
+## Quick start
 
 ```bash
 npm install
+
+# UI only: http://localhost:1420
+npm run dev
+
+# full desktop app (C engine + ViGEm)
 cargo tauri dev
 ```
 
-### Build
+## Releases
 
-```bash
-cargo tauri build
-```
-
-Output: `src-tauri/target/release/bundle/`
-
-## CI/CD
-
-GitHub Actions automatically builds Windows releases on push to main.
+Releases are built **only** by GitHub Actions on `windows-latest` — never locally.
+Push to `main` (or run the workflow manually) and the **Build Windows Release**
+workflow publishes the `.msi` and `.exe` installers.
 
 ## License
 
-Apache-2.0
+[Apache-2.0](LICENSE)
