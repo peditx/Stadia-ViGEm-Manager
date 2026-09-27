@@ -7,7 +7,7 @@ use std::sync::atomic::{AtomicBool, AtomicU16, AtomicU8, Ordering};
 use std::thread;
 use std::time::Duration;
 
-use crate::{emit_config_changed, mobile::get_token, config::AppConfig};
+use crate::{emit_config_changed, config::AppConfig};
 
 static RUNNING: AtomicBool = AtomicBool::new(false);
 static PORT: AtomicU16 = AtomicU16::new(9090);
