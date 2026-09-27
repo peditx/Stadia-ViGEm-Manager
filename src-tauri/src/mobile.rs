@@ -194,7 +194,7 @@ fn json_response(status: &str, body: &str) -> (String, String, Vec<u8>) {
     (status.to_string(), "application/json".to_string(), body.as_bytes().to_vec())
 }
 
-fn handle(mut stream: TcpStream) {
+fn handle(mut stream: TcpStream) -> (String, String, Vec<u8>) {
     let Some(req) = read_request(&mut stream) else {
         return;
     };
@@ -240,10 +240,7 @@ fn handle(mut stream: TcpStream) {
         ("POST", "/api/config") if check_auth(&req.headers) => {
             let cfg: crate::config::AppConfig = match serde_json::from_slice(&req.body) {
                 Ok(c) => c,
-                Err(_) => {
-                    let (s, c, b) = json_response("400 Bad Request", "{\"error\":\"invalid json\"}");
-                    return (s, c, b);
-                }
+                Err(_) => json_response("400 Bad Request", "{\"error\":\"invalid json\"}"),
             };
             match crate::config::save_config(&cfg) {
                 Ok(()) => {
@@ -267,8 +264,8 @@ fn handle(mut stream: TcpStream) {
         }
         ("POST", "/api/rumble") if check_auth(&req.headers) => {
             let strength: u8 = serde_json::from_slice(&req.body)
-                .and_then(|v: serde_json::Value| Ok(v.get("strength").and_then(|s| s.as_u64()).map(|s| s as u8)))
-                .unwrap_or_else(|_| RUMBLE_STRENGTH.load(Ordering::SeqCst));
+                .and_then(|v: serde_json::Value| v.get("strength").and_then(|s| s.as_u64()).map(|s| s as u8))
+                .unwrap_or_else(|| RUMBLE_STRENGTH.load(Ordering::SeqCst));
             match crate::controller::test_rumble(strength) {
                 Ok(()) => json_response("200 OK", "{\"ok\":true}"),
                 Err(e) => json_response("200 OK", &format!("{{\"ok\":false,\"error\":{:?}}}", e)),
