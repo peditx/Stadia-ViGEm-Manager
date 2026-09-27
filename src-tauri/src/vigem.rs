@@ -54,7 +54,7 @@ pub fn add_target(id: u64) -> Result<(), String> {
     target.plugin().map_err(err)?;
     target.wait_ready().map_err(err)?;
 
-    let mut notification = target.request_notification().map_err(err)?;
+    let notification = target.request_notification().map_err(err)?;
     let handle = notification.spawn_thread(move |_req, n| {
         crate::controller::notify_rumble_from_bus(id, n.large_motor, n.small_motor);
     });

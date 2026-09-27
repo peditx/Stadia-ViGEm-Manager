@@ -88,7 +88,6 @@ pub struct ControllerStatus {
 
 #[derive(Clone, Copy, Debug)]
 pub struct DeviceInfo {
-    pub id: u64,
     pub is_bluetooth: bool,
 }
 
@@ -155,7 +154,7 @@ pub fn device_infos() -> Vec<DeviceInfo> {
     let n = unsafe { engine_copy_devices(buf.as_mut_ptr(), buf.len() as i32) };
     buf[..n.max(0) as usize]
         .iter()
-        .map(|d| DeviceInfo { id: d.id, is_bluetooth: d.is_bluetooth != 0 })
+        .map(|d| DeviceInfo { is_bluetooth: d.is_bluetooth != 0 })
         .collect()
 }
 
