@@ -221,7 +221,7 @@ fn handle(mut stream: TcpStream) {
                     "controller": status_obj.controller,
                     "battery": status_obj.battery,
                     "connection": status_obj.connection,
-                    "deviceCount": status_obj.deviceCount,
+                    "deviceCount": status_obj.device_count,
                     "localIp": status_obj.local_ip,
                     "port": PORT.load(Ordering::SeqCst),
                     "vigemBus": status_obj.vigem_bus,
@@ -241,7 +241,8 @@ fn handle(mut stream: TcpStream) {
             let cfg: crate::config::AppConfig = match serde_json::from_slice(&req.body) {
                 Ok(c) => c,
                 Err(_) => {
-                    json_response("400 Bad Request", "{\"error\":\"invalid json\"}")
+                    let (s, c, b) = json_response("400 Bad Request", "{\"error\":\"invalid json\"}");
+                    return (s, c, b);
                 }
             };
             match crate::config::save_config(&cfg) {
@@ -266,8 +267,8 @@ fn handle(mut stream: TcpStream) {
         }
         ("POST", "/api/rumble") if check_auth(&req.headers) => {
             let strength: u8 = serde_json::from_slice(&req.body)
-                .and_then(|v: serde_json::Value| v.get("strength").and_then(|s| s.as_u64()).map(|s| s as u8))
-                .unwrap_or_else(|| RUMBLE_STRENGTH.load(Ordering::SeqCst));
+                .and_then(|v: serde_json::Value| Ok(v.get("strength").and_then(|s| s.as_u64()).map(|s| s as u8)))
+                .unwrap_or_else(|_| RUMBLE_STRENGTH.load(Ordering::SeqCst));
             match crate::controller::test_rumble(strength) {
                 Ok(()) => json_response("200 OK", "{\"ok\":true}"),
                 Err(e) => json_response("200 OK", &format!("{{\"ok\":false,\"error\":{:?}}}", e)),
