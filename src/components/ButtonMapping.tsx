@@ -54,26 +54,26 @@ export default function ButtonMapping({ theme, config, updateConfig }: ButtonMap
             />
 
             {/* Shoulders — sit on the top-edge shoulder arcs */}
-            <SBtn id="lTrigger" label="L2" x={26.5} y={21.5} size="shoulder" active={hoveredKey === "lTrigger"} />
-            <SBtn id="lBumper" label="L1" x={32.5} y={21.5} size="shoulder" active={hoveredKey === "lBumper"} />
-            <SBtn id="rBumper" label="R1" x={67.5} y={21.5} size="shoulder" active={hoveredKey === "rBumper"} />
-            <SBtn id="rTrigger" label="R2" x={73.5} y={21.5} size="shoulder" active={hoveredKey === "rTrigger"} />
+            <SBtn id="lTrigger" label="L2" x={26.5} y={20.8} size="shoulder" active={hoveredKey === "lTrigger"} />
+            <SBtn id="lBumper" label="L1" x={32.5} y={19.4} size="shoulder" active={hoveredKey === "lBumper"} />
+            <SBtn id="rBumper" label="R1" x={67.5} y={19.3} size="shoulder" active={hoveredKey === "rBumper"} />
+            <SBtn id="rTrigger" label="R2" x={73.5} y={20.9} size="shoulder" active={hoveredKey === "rTrigger"} />
 
             {/* D-pad */}
             <SBtn id="dpadUp" label="▲" x={28.8} y={28.8} size="dpad" active={hoveredKey === "dpadUp"} />
-            <SBtn id="dpadDown" label="▼" x={28.8} y={34.6} size="dpad" active={hoveredKey === "dpadDown"} />
-            <SBtn id="dpadLeft" label="◀" x={24.7} y={31.5} size="dpad" active={hoveredKey === "dpadLeft"} />
-            <SBtn id="dpadRight" label="▶" x={33.3} y={31.5} size="dpad" active={hoveredKey === "dpadRight"} />
+            <SBtn id="dpadDown" label="▼" x={28.8} y={35.3} size="dpad" active={hoveredKey === "dpadDown"} />
+            <SBtn id="dpadLeft" label="◀" x={24.9} y={32} size="dpad" active={hoveredKey === "dpadLeft"} />
+            <SBtn id="dpadRight" label="▶" x={33} y={32} size="dpad" active={hoveredKey === "dpadRight"} />
 
             {/* Face diamond */}
-            <SBtn id="faceY" label="Y" x={71.2} y={26.2} round size="face" active={hoveredKey === "faceY"} />
-            <SBtn id="faceX" label="X" x={66.2} y={31.9} round size="face" active={hoveredKey === "faceX"} />
-            <SBtn id="faceB" label="B" x={76} y={31.9} round size="face" active={hoveredKey === "faceB"} />
-            <SBtn id="faceA" label="A" x={71.5} y={36.9} round size="face" active={hoveredKey === "faceA"} />
+            <SBtn id="faceY" label="Y" x={70.9} y={26.5} round size="face" active={hoveredKey === "faceY"} />
+            <SBtn id="faceX" label="X" x={66.1} y={31.8} round size="face" active={hoveredKey === "faceX"} />
+            <SBtn id="faceB" label="B" x={75.9} y={31.9} round size="face" active={hoveredKey === "faceB"} />
+            <SBtn id="faceA" label="A" x={71.1} y={37.2} round size="face" active={hoveredKey === "faceA"} />
 
             {/* Center cluster */}
-            <SBtn id="optionsBtn" label="OPT" x={41} y={25.5} size="pill" active={hoveredKey === "optionsBtn"} />
-            <SBtn id="menuBtn" label="MNU" x={58.8} y={25.5} size="pill" active={hoveredKey === "menuBtn"} />
+            <SBtn id="optionsBtn" label="OPT" x={41.1} y={26.1} size="pill" active={hoveredKey === "optionsBtn"} />
+            <SBtn id="menuBtn" label="MNU" x={58.6} y={26} size="pill" active={hoveredKey === "menuBtn"} />
             <SBtn id="stadiaBtn" label="S" x={50} y={43.3} round size="center" active={hoveredKey === "stadiaBtn"} />
             <SBtn id="assistantBtn" label="AST" x={44.5} y={31.9} size="small" active={hoveredKey === "assistantBtn"} />
             <SBtn id="captureBtn" label="CAP" x={55.2} y={31.9} size="small" active={hoveredKey === "captureBtn"} />
@@ -155,7 +155,9 @@ const BTN_SIZES = {
   dpad: "w-[18px] h-[18px] text-[9px]",
   pill: "w-[32px] h-[18px] text-[8px]",
   small: "w-6 h-6 text-[8px]",
-  face: "w-7 h-7 text-[10px]",
+  // 22px, not 28 — the real face buttons are ~24 container px across, and a
+  // 28px chip overhangs the diamond's diagonal neighbours and overlaps them.
+  face: "w-[22px] h-[22px] text-[9px]",
   stick: "w-9 h-9 text-[10px]",
   center: "w-8 h-8 text-[10px]",
 } as const;
