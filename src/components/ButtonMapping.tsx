@@ -173,12 +173,14 @@ function SBtn({
   const radius = size === "shoulder" || size === "pill" || round ? "rounded-full" : "rounded-xs";
   return (
     <div
-      className={`absolute flex items-center justify-center font-medium transition-all duration-200 border
+      className={`absolute -translate-x-1/2 -translate-y-1/2 flex items-center justify-center font-medium transition-all duration-200 border
         ${active ? "bg-primary text-on-primary border-transparent scale-110 shadow-lg z-20" : "bg-black/70 text-white border-white/50"}
         ${BTN_SIZES[size]} ${radius}
       `}
       data-key={id}
-      style={{ left: `${x}%`, top: `${y}%`, transform: "translate(-50%, -50%)" }}
+      // Centering lives in Tailwind (-translate-*), not an inline transform:
+      // an inline `transform` would outrank Tailwind's and kill `scale-110`.
+      style={{ left: `${x}%`, top: `${y}%` }}
     >
       {label}
     </div>
