@@ -103,6 +103,11 @@ fn test_rumble(strength: u8) -> Result<String, String> {
 }
 
 #[tauri::command]
+fn get_mobile_token() -> Option<String> {
+    mobile::get_token()
+}
+
+#[tauri::command]
 async fn driver_action(
     name: String,
     action: String,
@@ -209,6 +214,7 @@ pub fn run() {
             get_status,
             refresh_devices,
             test_rumble,
+            get_mobile_token,
             driver_action,
             run_macro,
             get_config_path,

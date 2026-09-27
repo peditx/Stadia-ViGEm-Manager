@@ -18,6 +18,7 @@ export const DEFAULT_CONFIG: AppConfig = {
     token: "",
   },
   macrosEnabled: true,
+  themeKey: "green",
   keybinds: {
     stadiaBtn: { mode: "xinput", value: "Guide", label: "Stadia", category: "Special" },
     assistantBtn: { mode: "shortcut", value: "Win + S", label: "Assistant", category: "Special" },

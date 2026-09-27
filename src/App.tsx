@@ -23,7 +23,10 @@ function readTheme(): ThemeKey {
 
 export default function App() {
   const [activeTab, setActiveTab] = useState("dashboard");
-  const [themeKey, setThemeKey] = useState<ThemeKey>(readTheme);
+  const [themeKey, setThemeKey] = useState<ThemeKey>(() => {
+    // Initial fallback; will be overwritten by config load
+    return readTheme();
+  });
   const theme = THEMES[themeKey];
   const [config, setConfig] = useState<AppConfig>(DEFAULT_CONFIG);
   const [configPath, setConfigPath] = useState("./config.json");
@@ -53,6 +56,8 @@ export default function App() {
     root.style.setProperty("--m3-primary-container", r.primaryContainer);
     root.style.setProperty("--m3-on-primary-container", r.onPrimaryContainer);
     localStorage.setItem(THEME_KEY, themeKey);
+    // Persist themeKey to config so it survives restarts
+    updateConfig(null, "themeKey", themeKey);
   }, [themeKey, theme.hex]);
 
   // Load config once, then poll real status every 2s
@@ -62,6 +67,9 @@ export default function App() {
         hydrated.current = true;
         setSavedJson(JSON.stringify(cfg));
         setConfig(cfg);
+        if (cfg.themeKey && cfg.themeKey in THEMES) {
+          setThemeKey(cfg.themeKey as ThemeKey);
+        }
       })
       .catch(() => {
         hydrated.current = true;

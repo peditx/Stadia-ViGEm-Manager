@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { Smartphone, Wifi, AlertTriangle, Copy, Check, QrCode, RefreshCw } from "lucide-react";
 import { Theme, AppConfig, ControllerStatus } from "../lib/types";
 import { ToggleRow, Chip, Btn, Overline, IconBtn } from "./ui";
@@ -24,19 +25,20 @@ export default function MobileRemote({
   const url = `http://${status.localIp}:${config.mobile.port}`;
   const fullUrl = token ? `${url}/#${token}` : url;
 
-  // Fetch token when service starts
+  // Fetch token from backend when service starts (runtime token, not config)
   useEffect(() => {
-    if (running && config.mobile.token) {
-      setToken(config.mobile.token);
-    } else if (!running) {
+    if (running) {
+      invoke<string>("get_mobile_token")
+        .then(setToken)
+        .catch(() => setToken(null));
+    } else {
       setToken(null);
     }
-  }, [running, config.mobile.token]);
+  }, [running]);
 
   const setEnabled = async (v: boolean) => {
     updateConfig("mobile", "enabled", v);
     setToggling(true);
-    // apply_live will start/stop the server; this just sets the flag
     setTimeout(() => setToggling(false), 500);
   };
 

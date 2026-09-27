@@ -61,6 +61,7 @@ export interface AppConfig {
   macrosEnabled: boolean;
   keybinds: Record<string, Keybind>;
   macros: Macro[];
+  themeKey: string;
 }
 
 export interface ControllerStatus {

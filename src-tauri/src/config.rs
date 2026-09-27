@@ -13,6 +13,8 @@ pub struct AppConfig {
     pub macros_enabled: bool,
     pub keybinds: HashMap<String, Keybind>,
     pub macros: Vec<MacroDef>,
+    #[serde(default)]
+    pub theme_key: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -139,5 +141,6 @@ fn default_config() -> AppConfig {
                 MacroStep { step_type: "press".into(), key: Some("RT".into()), ms: Some(50) },
             ],
         }],
+        theme_key: "green".into(),
     }
 }
