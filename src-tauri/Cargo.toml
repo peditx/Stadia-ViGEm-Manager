@@ -39,4 +39,5 @@ codegen-units = 1
 lto = true
 opt-level = "s"
 strip = true
-panic = "abort"
+# unwind (the default), not abort: one panicking worker thread must not take
+# the whole app — window, tray, HID pump — down with it.

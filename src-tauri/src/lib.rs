@@ -9,13 +9,18 @@ use std::sync::Mutex;
 use std::sync::OnceLock;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
-use tauri::{Emitter, Manager, State, WindowEvent};
+use tauri::{Emitter, Manager, RunEvent, State, WindowEvent};
 
 pub struct AppState {
     pub config: Mutex<config::AppConfig>,
 }
 
 static PUMP_RUNNING: AtomicBool = AtomicBool::new(false);
+
+/// Set only by the tray's Quit item. Everything else that wants the process gone
+/// (closing the last window, runtime shutdown) must be answered with "keep
+/// running" — otherwise hiding to tray takes the whole app down with it.
+static QUIT_REQUESTED: AtomicBool = AtomicBool::new(false);
 
 /// Outcome of pushing a config into the runtime. `path` is set only when the
 /// config was also written to disk; `warnings` lists every keybind the engine
@@ -52,7 +57,9 @@ fn apply(state: &State<AppState>, cfg: &config::AppConfig) -> Vec<controller::Bi
     mobile::reconcile_mobile(cfg);
 
     *state.config.lock().unwrap() = cfg.clone();
-    emit_config_changed(cfg);
+    // Deliberately NOT emitting `config-changed` here: this runs for the UI's
+    // own `apply_live`, and echoing back would setConfig → apply_live → … forever.
+    // Only mobile.rs emits, when a phone changed the config.
     warnings
 }
 
@@ -107,6 +114,14 @@ fn get_mobile_token() -> Option<String> {
     mobile::get_token()
 }
 
+/// `async` so the UAC wait inside `netsh` never blocks a command or the webview.
+#[tauri::command(async)]
+fn open_firewall(port: u16) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || drivers::ensure_firewall_rule(port))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
 #[tauri::command]
 async fn driver_action(
     name: String,
@@ -157,7 +172,10 @@ fn build_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
                 }
             }
             "refresh" => controller::refresh(),
-            "quit" => app.exit(0),
+            "quit" => {
+                QUIT_REQUESTED.store(true, Ordering::SeqCst);
+                app.exit(0);
+            }
             _ => {}
         });
 
@@ -192,7 +210,7 @@ pub fn run() {
         }
     });
 
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .manage(AppState { config: Mutex::new(cfg) })
         .on_window_event(|window, event| {
@@ -215,13 +233,25 @@ pub fn run() {
             refresh_devices,
             test_rumble,
             get_mobile_token,
+            open_firewall,
             driver_action,
             run_macro,
             get_config_path,
             open_config_dir,
         ])
-        .run(tauri::generate_context!())
+        .build(tauri::generate_context!())
         .expect("error while running tauri application");
+
+    // Close → hide, then keep the runtime alive: only the tray's Quit may end
+    // the process. Without this the webview can drop to zero visible windows and
+    // take the app down instead of parking it in the tray.
+    app.run(|_app, event| {
+        if let RunEvent::ExitRequested { api, .. } = event {
+            if !QUIT_REQUESTED.load(Ordering::SeqCst) {
+                api.prevent_exit();
+            }
+        }
+    });
 
     // App exited (tray Quit).
     PUMP_RUNNING.store(false, Ordering::SeqCst);

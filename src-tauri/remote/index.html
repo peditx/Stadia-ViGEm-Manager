@@ -84,7 +84,9 @@
         <h2>Pair with desktop app</h2>
         <p>Open the Remote Access tab in the desktop app and scan the QR code or copy the URL with the token.</p>
         <div id="pairToken" class="token-display"></div>
-        <button class="btn btn-primary" onclick="copyToken()">Copy Pairing URL</button>
+        <input id="pairInput" class="input" style="margin-bottom:10px" placeholder="Paste the token from the desktop app" autocomplete="off">
+        <button class="btn btn-primary" onclick="pairWithToken()">Connect</button>
+        <button class="btn btn-secondary" onclick="copyToken()">Copy Pairing URL</button>
       </div>
     </div>
 
@@ -166,7 +168,19 @@
       document.getElementById('mainApp').classList.add('hidden');
       if (token) {
         document.getElementById('pairToken').textContent = location.origin + location.pathname + '#' + token;
+      } else {
+        document.getElementById('pairToken').textContent =
+          'No token on this page — copy it from Remote Access in the desktop app, or open the full address shown there.';
       }
+    }
+
+    // Manual pairing: the desktop URL can reach the phone without its token
+    // (clipboard, QR, a stale link). Without this box the phone is stuck here.
+    async function pairWithToken() {
+      const v = document.getElementById('pairInput').value.trim();
+      if (!v) { showToast('Paste a token first', 'error'); return; }
+      token = v;
+      await checkAuth();
     }
 
     function showMainApp() {
@@ -175,6 +189,7 @@
     }
 
     function copyToken() {
+      if (!token) { showToast('No token on this page yet — paste it below', 'error'); return; }
       const url = location.origin + location.pathname + '#' + token;
       navigator.clipboard.writeText(url).then(() => showToast('Copied', 'success'));
     }

@@ -297,6 +297,35 @@ pub fn open_folder(path: &str) -> Result<(), String> {
         .map_err(|e| e.to_string())
 }
 
+/// Open the Windows Firewall for the remote-control port.
+/// Reading the rule set costs nothing; adding one needs UAC (the same prompt the
+/// drivers use), and the rule is permanent — so this only writes when missing.
+/// Without it the phone on the LAN cannot reach the app at all.
+pub fn ensure_firewall_rule(port: u16) -> Result<String, String> {
+    let name = format!("Stadia Manager Remote {}", port);
+
+    if let Ok(out) = run_hidden(
+        "netsh",
+        &["advfirewall", "firewall", "show", "rule", &format!("name={}", name)],
+    ) {
+        let text = format!("{}{}", out_err(&out), String::from_utf8_lossy(&out.stdout)).to_lowercase();
+        if out.status.success() && !text.contains("no rules match") {
+            return Ok(format!("Windows Firewall already allows port {}", port));
+        }
+    }
+
+    let params = format!(
+        "advfirewall firewall add rule name=\"{}\" dir=in action=allow protocol=TCP localport={} profile=any",
+        name, port
+    );
+    let code = run_elevated("netsh.exe", &params)?;
+    if code == 0 {
+        Ok(format!("Windows Firewall now allows port {}", port))
+    } else {
+        Err(format!("netsh exited with code {} — the rule was not added", code))
+    }
+}
+
 pub fn local_ip() -> String {
     std::net::UdpSocket::bind("0.0.0.0:0")
         .and_then(|s| {

@@ -43,6 +43,26 @@ const SHORTCUT_PRESETS = [
   "Ctrl + A",
 ];
 
+/* Fixed display order for the list. The backend keeps `keybinds` in a HashMap,
+   so `Object.entries` came back shuffled on every config round-trip and the rows
+   jumped around under the cursor. Keys we don't know keep their own order. */
+const KEY_ORDER = [
+  "stadiaBtn", "assistantBtn", "captureBtn",
+  "optionsBtn", "menuBtn",
+  "faceA", "faceB", "faceX", "faceY",
+  "lTrigger", "rTrigger", "lBumper", "rBumper",
+  "lStickClick", "rStickClick",
+  "dpadUp", "dpadDown", "dpadLeft", "dpadRight",
+];
+
+function orderedKeybinds(keybinds: Record<string, Keybind>): [string, Keybind][] {
+  const rank = new Map(KEY_ORDER.map((k, i) => [k, i]));
+  return Object.entries(keybinds)
+    .map(([k, v]) => ({ k, v, i: rank.get(k) ?? KEY_ORDER.length }))
+    .sort((a, b) => a.i - b.i) // stable in V8: unknown keys keep their order
+    .map(({ k, v }) => [k, v] as [string, Keybind]);
+}
+
 export default function ButtonMapping({ theme, config, updateConfig, warnings }: ButtonMappingProps) {
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
 
@@ -54,7 +74,7 @@ export default function ButtonMapping({ theme, config, updateConfig, warnings }:
           <Overline>Button map</Overline>
         </div>
         <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
-          {Object.entries(config.keybinds).map(([key, val]) => (
+          {orderedKeybinds(config.keybinds).map(([key, val]) => (
             <MappingRow
               key={key}
               id={key}

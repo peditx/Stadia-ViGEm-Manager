@@ -83,6 +83,13 @@ pub fn start(port: u16) -> Result<(), String> {
 
     RUNNING.store(true, Ordering::SeqCst);
 
+    // Windows Firewall drops unsolicited inbound traffic, so the phone on the LAN
+    // would see nothing at all. Open the port (UAC the first time, rule is kept).
+    // Background thread: the UAC wait must not stall a config apply.
+    thread::spawn(move || {
+        let _ = crate::drivers::ensure_firewall_rule(port);
+    });
+
     thread::spawn(move || {
         for stream in listener.incoming() {
             if !RUNNING.load(Ordering::SeqCst) {

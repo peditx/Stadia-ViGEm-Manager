@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Smartphone, Wifi, AlertTriangle, Copy, Check, QrCode, RefreshCw } from "lucide-react";
+import { Smartphone, Wifi, AlertTriangle, Copy, Check, QrCode, RefreshCw, Shield } from "lucide-react";
 import { Theme, AppConfig, ControllerStatus } from "../lib/types";
-import { ToggleRow, Chip, Btn, Overline, IconBtn } from "./ui";
+import { ToggleRow, Chip, Btn, Overline, IconBtn, showToast } from "./ui";
 
 interface MobileRemoteProps {
   theme: Theme;
@@ -20,7 +20,34 @@ export default function MobileRemote({
   const [toggling, setToggling] = useState(false);
   const [copied, setCopied] = useState(false);
   const [token, setToken] = useState<string | null>(null);
+  const [firewallBusy, setFirewallBusy] = useState(false);
   const running = status.mobileService;
+
+  // Enabled but still not up after a few seconds = something swallowed the
+  // failure (port in use, bind error). Say it instead of spinning forever.
+  useEffect(() => {
+    if (!config.mobile.enabled || running) return;
+    const t = window.setTimeout(
+      () =>
+        showToast(
+          `Remote service is not running — port ${config.mobile.port} may be in use`,
+          "error",
+        ),
+      6000,
+    );
+    return () => window.clearTimeout(t);
+  }, [config.mobile.enabled, running, config.mobile.port]);
+
+  const openFirewall = async () => {
+    setFirewallBusy(true);
+    try {
+      showToast(await invoke<string>("open_firewall", { port: config.mobile.port }), "success");
+    } catch (e) {
+      showToast(String(e), "error");
+    } finally {
+      setFirewallBusy(false);
+    }
+  };
 
   const url = `http://${status.localIp}:${config.mobile.port}`;
   const fullUrl = token ? `${url}/#${token}` : url;
@@ -125,6 +152,17 @@ export default function MobileRemote({
               />
               <p className="text-[11px] text-on-surface-variant mt-1">
                 Port changes apply automatically.
+              </p>
+            </div>
+            <div>
+              <label className="text-[11px] font-medium tracking-[0.08em] uppercase text-on-surface-variant mb-1.5 block">
+                Windows Firewall
+              </label>
+              <Btn variant="outlined" onClick={openFirewall} disabled={firewallBusy}>
+                <Shield size={14} /> {firewallBusy ? "Waiting for approval…" : "Open port for LAN"}
+              </Btn>
+              <p className="text-[11px] text-on-surface-variant mt-1">
+                Without this rule Windows blocks the phone. The rule is kept once added.
               </p>
             </div>
           </div>

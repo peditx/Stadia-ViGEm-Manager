@@ -307,7 +307,7 @@ void hid_free_device_info(struct hid_device_info *device_info)
    Battery System / Remaining Capacity. Everything else is not a charge level. */
 #define HID_PAGE_POWER_DEVICE 0x06
 #define HID_USAGE_BATTERY_STRENGTH 0x20
-#define HID_PAGE_BATTERY_SYSTEM 0x8506
+#define HID_PAGE_BATTERY_SYSTEM 0x85
 #define HID_USAGE_REMAINING_CAPACITY 0x66
 
 /*
