@@ -81,7 +81,12 @@ pub fn notify(title: &'static str, body: &'static str) {
     let runner = handle.clone();
     let _ = runner.run_on_main_thread(move || {
         use tauri_plugin_notification::NotificationExt;
-        let _ = handle.notification().title(title).body(body).show();
+        let _ = handle
+            .notification()
+            .builder()
+            .title(title)
+            .body(body)
+            .show();
     });
 }
 
