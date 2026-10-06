@@ -118,14 +118,24 @@ extern "C" fn on_state(id: u64, report: *const X360Report) {
     unsafe { crate::vigem::push(id, &*report) };
 }
 
-extern "C" fn on_add(id: u64, _is_bluetooth: i32) {
+extern "C" fn on_add(id: u64, is_bluetooth: i32) {
     if let Err(e) = crate::vigem::add_target(id) {
         eprintln!("vigem add_target({}): {}", id, e);
+        return;
     }
+    crate::notify(
+        "Controller connected",
+        if is_bluetooth != 0 {
+            "Stadia pad on Bluetooth"
+        } else {
+            "Stadia pad on USB"
+        },
+    );
 }
 
 extern "C" fn on_remove(id: u64) {
     crate::vigem::remove_target(id);
+    crate::notify("Controller disconnected", "Stadia pad is gone");
 }
 
 /// Called from the ViGEm rumble notification thread.

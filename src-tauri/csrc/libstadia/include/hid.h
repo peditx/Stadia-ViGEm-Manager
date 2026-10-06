@@ -44,6 +44,8 @@ struct hid_device
     BOOL battery_is_feature;
     LONG battery_logical_max;
     INT battery;
+    /* Consecutive HidD_GetFeature failures on the battery report. */
+    BYTE battery_fails;
 };
 
 GUID hid_get_class(void);

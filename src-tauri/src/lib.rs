@@ -70,6 +70,21 @@ pub fn set_config_emitter(app: tauri::AppHandle) {
     CONFIG_EMITTER.set(app).ok();
 }
 
+/// Toast on Windows for controller connect/disconnect. The engine calls this
+/// from its device thread, so the WinRT call is marshalled onto the main thread.
+pub fn notify(title: &'static str, body: &'static str) {
+    // Two handles on purpose: one parks on the main thread, the other is moved
+    // into the closure (a single handle would be borrowed by the call itself).
+    let Some(handle) = CONFIG_EMITTER.get().cloned() else {
+        return;
+    };
+    let runner = handle.clone();
+    let _ = runner.run_on_main_thread(move || {
+        use tauri_plugin_notification::NotificationExt;
+        let _ = handle.notification().title(title).body(body).show();
+    });
+}
+
 pub fn emit_config_changed(cfg: &config::AppConfig) {
     if let Some(app) = CONFIG_EMITTER.get() {
         let _ = app.emit("config-changed", cfg);
@@ -234,6 +249,7 @@ pub fn run() {
 
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_notification::init())
         .manage(AppState { config: Mutex::new(cfg) })
         .on_window_event(|window, event| {
             // Close hides to tray; quit lives in the tray menu.

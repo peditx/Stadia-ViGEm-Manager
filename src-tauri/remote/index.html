@@ -45,6 +45,13 @@
     .pair-panel p { font-size: 13px; color: #9ca3af; margin: 0 0 16px; }
     .token-display { background: #0b0c10; border: 1px solid #ffffff1a; border-radius: 8px; padding: 12px; font-family: monospace; font-size: 12px; word-break: break-all; margin-bottom: 12px; }
     .macro-list { display: flex; flex-direction: column; gap: 8px; }
+    .map-row { padding: 10px; background: #0b0c10; border: 1px solid #ffffff1a; border-radius: 8px; }
+    .map-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+    .map-name { font-size: 13px; font-weight: 500; }
+    .map-cat { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: #6b7280; }
+    .map-controls { display: flex; gap: 8px; }
+    .map-controls select, .map-controls input { flex: 1 1 auto; min-width: 0; padding: 9px; border: 1px solid #ffffff1a; border-radius: 6px; background: #0b0c10; color: #e5e7eb; font-size: 13px; font-family: inherit; outline: none; }
+    .map-controls select:focus, .map-controls input:focus { border-color: var(--m3-primary, #44d62c); }
     .macro-btn { text-align: left; padding: 12px; background: #0b0c10; border: 1px solid #ffffff1a; border-radius: 8px; color: #e5e7eb; font-size: 13px; cursor: pointer; }
     .macro-btn:active { background: #1f2937; }
     .driver-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px; background: #0b0c10; border: 1px solid #ffffff1a; border-radius: 8px; margin-bottom: 8px; }
@@ -75,6 +82,7 @@
     <div class="tab-bar">
       <button class="tab active" data-tab="status">Status</button>
       <button class="tab" data-tab="controls">Controls</button>
+      <button class="tab" data-tab="mapping">Mapping</button>
       <button class="tab" data-tab="drivers">Drivers</button>
     </div>
 
@@ -123,6 +131,15 @@
         <div class="card">
           <div class="card-title">Macros</div>
           <div id="macroList" class="macro-list"></div>
+        </div>
+      </div>
+
+      <!-- Mapping Tab -->
+      <div id="tab-mapping" class="tab-content">
+        <div class="card">
+          <div class="card-title">Button Mapping</div>
+          <div id="mapList" class="macro-list"></div>
+          <div class="hint">Change what each pad button does — saves straight to the desktop app.</div>
         </div>
       </div>
 
@@ -201,6 +218,7 @@
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
         btn.classList.add('active');
         document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+        if (btn.dataset.tab === 'mapping') loadMapping();
       };
     });
 
@@ -234,6 +252,108 @@
         } else {
           list.innerHTML = '<div class="hint">No macros configured</div>';
         }
+      } catch (e) {}
+    }
+
+    // Button mapping — same config.keybinds shape the desktop edits, so a save
+    // here lands in config.json and the desktop picks it up via config-changed.
+    const MAP_ORDER = ["stadiaBtn", "assistantBtn", "captureBtn", "optionsBtn", "menuBtn",
+      "faceA", "faceB", "faceX", "faceY", "lTrigger", "rTrigger", "lBumper", "rBumper",
+      "lStickClick", "rStickClick", "dpadUp", "dpadDown", "dpadLeft", "dpadRight"];
+    const XINPUT_VALUES = ["A", "B", "X", "Y", "Start", "Back", "Guide", "LB", "RB", "LT", "RT",
+      "L-Stick", "R-Stick", "Up", "Down", "Left", "Right"];
+    const SHORTCUT_PRESETS = ["Win + D", "Win + E", "Win + L", "Win + R", "Win + S",
+      "Win + Shift + S", "Win + A", "Win + I", "Win + M", "Win + Tab", "Ctrl + Shift + Esc",
+      "Alt + Tab", "Alt + F4", "Ctrl + C", "Ctrl + V", "Ctrl + X", "Ctrl + Z", "Ctrl + A"];
+    const MODES = ["xinput", "app", "shortcut"];
+    let mapCfg = null;
+    let mapSaveTimer = null;
+
+    // The backend keeps keybinds in a HashMap, so raw entry order is random.
+    function orderedKeybinds(keybinds) {
+      const rank = new Map(MAP_ORDER.map((k, i) => [k, i]));
+      return Object.entries(keybinds).sort((a, b) => {
+        const ra = rank.has(a[0]) ? rank.get(a[0]) : 999;
+        const rb = rank.has(b[0]) ? rank.get(b[0]) : 999;
+        return ra - rb || a[0].localeCompare(b[0]);
+      });
+    }
+
+    function makeSelect(options, value, onChange) {
+      const sel = document.createElement('select');
+      const opts = options.slice();
+      if (value && !opts.includes(value)) opts.push(value); // keep an off-list value visible
+      opts.forEach(o => {
+        const opt = document.createElement('option');
+        opt.value = o; opt.textContent = o;
+        sel.appendChild(opt);
+      });
+      sel.value = value || opts[0];
+      sel.onchange = () => onChange(sel.value);
+      return sel;
+    }
+
+    function renderMapping() {
+      const list = document.getElementById('mapList');
+      list.innerHTML = '';
+      if (!mapCfg || !mapCfg.keybinds || !Object.keys(mapCfg.keybinds).length) {
+        list.innerHTML = '<div class="hint">No keybinds configured</div>';
+        return;
+      }
+      orderedKeybinds(mapCfg.keybinds).forEach(([id, kb]) => {
+        const row = document.createElement('div');
+        row.className = 'map-row';
+
+        const top = document.createElement('div');
+        top.className = 'map-top';
+        const name = document.createElement('span');
+        name.className = 'map-name'; name.textContent = kb.label || id;
+        const cat = document.createElement('span');
+        cat.className = 'map-cat'; cat.textContent = kb.category || kb.mode;
+        top.append(name, cat);
+        row.appendChild(top);
+
+        const ctrls = document.createElement('div');
+        ctrls.className = 'map-controls';
+        ctrls.appendChild(makeSelect(MODES, kb.mode, m => {
+          kb.mode = m;
+          // The value has to mean something in the new mode — swap in a sane default.
+          if (m === 'xinput' && !XINPUT_VALUES.includes(kb.value)) kb.value = 'A';
+          if (m === 'shortcut' && !SHORTCUT_PRESETS.includes(kb.value)) kb.value = 'Win + D';
+          if (m === 'app' && !kb.value) kb.value = '';
+          scheduleMapSave();
+          renderMapping();
+        }));
+        if (kb.mode === 'xinput' || kb.mode === 'shortcut') {
+          const options = kb.mode === 'xinput' ? XINPUT_VALUES : SHORTCUT_PRESETS;
+          ctrls.appendChild(makeSelect(options, kb.value, v => { kb.value = v; scheduleMapSave(); }));
+        } else {
+          const inp = document.createElement('input');
+          inp.type = 'text';
+          inp.placeholder = 'full path to .exe';
+          inp.value = kb.value || '';
+          inp.onchange = () => { kb.value = inp.value.trim(); scheduleMapSave(); };
+          ctrls.appendChild(inp);
+        }
+        row.appendChild(ctrls);
+        list.appendChild(row);
+      });
+    }
+
+    function scheduleMapSave() {
+      clearTimeout(mapSaveTimer);
+      mapSaveTimer = setTimeout(async () => {
+        try {
+          await api('POST', '/api/config', mapCfg);
+          showToast('Mapping saved', 'success');
+        } catch (e) { showToast(e.message, 'error'); }
+      }, 600);
+    }
+
+    async function loadMapping() {
+      try {
+        mapCfg = await api('GET', '/api/config');
+        renderMapping();
       } catch (e) {}
     }
 
@@ -306,6 +426,7 @@
         history.replaceState(null, '', location.pathname); // clear hash
         showMainApp();
         loadMacros();
+        loadMapping();
         loadDrivers();
         pollStatus();
         setInterval(pollStatus, 2000);

@@ -30,7 +30,7 @@ export default function App() {
   const theme = THEMES[themeKey];
   const [config, setConfig] = useState<AppConfig>(DEFAULT_CONFIG);
   const [configPath, setConfigPath] = useState("./config.json");
-  const [appVersion, setAppVersion] = useState("2.2.0");
+  const [appVersion, setAppVersion] = useState("2.3.0");
   // Snapshot of the last config written to disk, for the "unsaved" chip.
   const [savedJson, setSavedJson] = useState("");
   const hydrated = useRef(false);

@@ -235,18 +235,27 @@ fn handle(mut stream: TcpStream) -> (String, String, Vec<u8>) {
             )
         }
         ("GET", "/api/config") => {
-            let cfg = crate::config::load_config();
+            // Unauthenticated by design (the phone polls it as an auth probe),
+            // so the bearer token must not ride along — a LAN listener would
+            // otherwise walk away with full control of this machine.
+            let mut cfg = crate::config::load_config();
+            cfg.mobile.token = String::new();
             json_response("200 OK", &serde_json::to_string(&cfg).unwrap_or_default())
         }
 
         // Authenticated mutating endpoints
         ("POST", "/api/config") if check_auth(&req.headers) => {
-            let cfg: crate::config::AppConfig = match serde_json::from_slice(&req.body) {
+            let mut cfg: crate::config::AppConfig = match serde_json::from_slice(&req.body) {
                 Ok(c) => c,
                 Err(_) => {
                     return json_response("400 Bad Request", "{\"error\":\"invalid json\"}");
                 }
             };
+            // Clients got a config with the token redacted, so an empty token
+            // here means "unchanged" rather than "clear it".
+            if cfg.mobile.token.is_empty() {
+                cfg.mobile.token = crate::config::load_config().mobile.token;
+            }
             match crate::config::save_config(&cfg) {
                 Ok(()) => {
                     // Apply to running systems

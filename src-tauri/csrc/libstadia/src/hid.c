@@ -307,8 +307,51 @@ void hid_free_device_info(struct hid_device_info *device_info)
    Battery System / Remaining Capacity. Everything else is not a charge level. */
 #define HID_PAGE_POWER_DEVICE 0x06
 #define HID_USAGE_BATTERY_STRENGTH 0x20
-#define HID_PAGE_BATTERY_SYSTEM 0x85
+#define HID_PAGE_BATTERY_SYSTEM 0x85     /* hidusage.h numbering */
+#define HID_PAGE_BATTERY_SYSTEM_USB 0x07 /* USB HID Usage Tables numbering */
 #define HID_USAGE_REMAINING_CAPACITY 0x66
+
+/* The class driver can read the charge for us, but the import libs we link
+   don't ship HidD_GetBatteryInformation on every SDK, so resolve it from
+   hid.dll at first use. A missing export simply falls back to the
+   descriptor walk below -- nothing here may break an open. */
+typedef BOOLEAN (WINAPI *PFN_HIDDGETBATTERYINFO)(HANDLE, ULONG, PVOID);
+static PFN_HIDDGETBATTERYINFO pfn_get_battery_info = NULL;
+static BOOL battery_api_probed = FALSE;
+
+static void _resolve_battery_api(void)
+{
+    HMODULE hid;
+    if (battery_api_probed) return;
+    battery_api_probed = TRUE;
+    hid = GetModuleHandleW(L"hid.dll");
+    if (hid == NULL) hid = LoadLibraryW(L"hid.dll");
+    if (hid != NULL)
+        pfn_get_battery_info = (PFN_HIDDGETBATTERYINFO)(void *)GetProcAddress(hid, "HidD_GetBatteryInformation");
+}
+
+/* Charge straight from the OS, in %, or -1 when it won't answer. Tried before
+   the descriptor path because plenty of pads expose no battery usage at all
+   while still answering this call. The buffer is deliberately larger than the
+   documented two ULONGs so an SDK with a bigger struct can't overrun it. */
+static INT _os_battery(struct hid_device *dev)
+{
+    static const ULONG types[2] = {0 /* HidP_Input */, 2 /* HidP_Feature */};
+    ULONG buf[16];
+    int i;
+
+    _resolve_battery_api();
+    if (pfn_get_battery_info == NULL) return -1;
+    for (i = 0; i < 2; i++)
+    {
+        memset(buf, 0, sizeof(buf));
+        if (!pfn_get_battery_info(dev->handle, types[i], buf)) continue;
+        if (buf[1] > 100) continue;                         /* not a percentage */
+        if (buf[0] == 0 && buf[1] == 0) continue;           /* "unreported", not empty */
+        return (INT)buf[1];
+    }
+    return -1;
+}
 
 /*
  * Look for a battery usage while the preparsed data is still live. Returns
@@ -333,7 +376,8 @@ static BOOL _probe_battery(struct hid_device *dev, PHIDP_PREPARSED_DATA pp_data)
             USAGE page = caps[i].UsagePage;
             USAGE usage = caps[i].IsRange ? caps[i].Range.UsageMin : caps[i].NotRange.Usage;
             BOOL hit = (page == HID_PAGE_POWER_DEVICE && usage == HID_USAGE_BATTERY_STRENGTH) ||
-                       (page == HID_PAGE_BATTERY_SYSTEM && usage == HID_USAGE_REMAINING_CAPACITY);
+                       (page == HID_PAGE_BATTERY_SYSTEM && usage == HID_USAGE_REMAINING_CAPACITY) ||
+                       (page == HID_PAGE_BATTERY_SYSTEM_USB && usage == HID_USAGE_REMAINING_CAPACITY);
             if (!hit) continue;
 
             dev->has_battery = TRUE;
@@ -435,6 +479,7 @@ struct hid_device *hid_open_device(LPTSTR path, BOOL access_rw, BOOL shared)
     dev->battery_is_feature = FALSE;
     dev->battery_logical_max = 0;
     dev->battery = -1;
+    dev->battery_fails = 0;
     /* Kept alive only when a battery usage was found; see hid_free_device. */
     if (!_probe_battery(dev, pp_data))
     {
@@ -540,8 +585,18 @@ INT hid_get_battery(struct hid_device *device)
     ULONG value = 0;
     NTSTATUS status;
     BYTE *scratch;
+    INT os;
 
-    if (device == NULL || !device->has_battery || device->pp_data == NULL)
+    if (device == NULL) return -1;
+
+    os = _os_battery(device);
+    if (os >= 0)
+    {
+        device->battery = os;
+        return os;
+    }
+
+    if (!device->has_battery || device->pp_data == NULL)
     {
         return -1;
     }
@@ -557,11 +612,13 @@ INT hid_get_battery(struct hid_device *device)
         scratch[0] = device->battery_report_id;
         if (!HidD_GetFeature(device->handle, scratch, length))
         {
-            /* Descriptor promised a battery the device won't hand over.
-               Stop trying rather than stall the input thread forever. */
-            device->has_battery = FALSE;
-            return -1;
+            /* A single failed read (busy device, mid-reconnect) must not kill
+               the probe for the rest of the session -- only give up once the
+               pad has refused five polls running. */
+            if (++device->battery_fails >= 5) device->has_battery = FALSE;
+            return device->battery;
         }
+        device->battery_fails = 0;
     }
     else
     {
