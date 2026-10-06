@@ -1,6 +1,6 @@
 [package]
 name = "stadia-vigem-manager"
-version = "2.1.0"
+version = "2.2.0"
 description = "Stadia controller -> Xbox 360 (ViGEm) manager for Windows"
 authors = ["peditx"]
 edition = "2021"

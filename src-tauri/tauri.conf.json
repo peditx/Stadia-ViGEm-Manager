@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicholasgasior/tauri-config-schema/tauri-v2/schema.json",
   "productName": "Stadia Manager",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "identifier": "ir.peditx.stadia-manager",
   "build": {
     "beforeDevCommand": "npm run dev",

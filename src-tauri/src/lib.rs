@@ -122,6 +122,28 @@ async fn open_firewall(port: u16) -> Result<String, String> {
         .map_err(|e| e.to_string())?
 }
 
+/// Version baked into the bundle at build time — what the update check compares against.
+#[tauri::command]
+fn get_app_version(app: tauri::AppHandle) -> String {
+    app.package_info().version.to_string()
+}
+
+/// Pull the installer the webview picked out of GitHub's latest release and run it.
+/// Blocking on purpose: the download and the UAC wait must not stall the webview.
+#[tauri::command(async)]
+async fn install_update(url: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let dest = std::env::temp_dir().join("Stadia-Manager-update.exe");
+        drivers::download(&url, &dest)?;
+        match drivers::run_elevated(&dest.to_string_lossy(), "")? {
+            0 => Ok("Installer finished — restart the app".into()),
+            code => Err(format!("Installer exited with code {}", code)),
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 #[tauri::command]
 async fn driver_action(
     name: String,
@@ -234,6 +256,8 @@ pub fn run() {
             test_rumble,
             get_mobile_token,
             open_firewall,
+            get_app_version,
+            install_update,
             driver_action,
             run_macro,
             get_config_path,

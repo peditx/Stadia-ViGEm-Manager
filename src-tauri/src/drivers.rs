@@ -67,7 +67,7 @@ fn winget(id: &str, uninstall: bool) -> Result<String, String> {
     }
 }
 
-fn download(url: &str, dest: &Path) -> Result<(), String> {
+pub fn download(url: &str, dest: &Path) -> Result<(), String> {
     let dest_s = dest.to_string_lossy().to_string();
     let out = run_hidden(
         "curl",
@@ -83,7 +83,7 @@ fn download(url: &str, dest: &Path) -> Result<(), String> {
 
 /// Launch `path` elevated (UAC prompt) and wait for it to finish.
 /// Returns the process exit code.
-fn run_elevated(path: &str, params: &str) -> Result<u32, String> {
+pub fn run_elevated(path: &str, params: &str) -> Result<u32, String> {
     use std::ffi::OsStr;
     use std::os::windows::ffi::OsStrExt;
     use windows_sys::Win32::Foundation::{CloseHandle, GetLastError, ERROR_CANCELLED};

@@ -30,6 +30,7 @@ export default function App() {
   const theme = THEMES[themeKey];
   const [config, setConfig] = useState<AppConfig>(DEFAULT_CONFIG);
   const [configPath, setConfigPath] = useState("./config.json");
+  const [appVersion, setAppVersion] = useState("2.2.0");
   // Snapshot of the last config written to disk, for the "unsaved" chip.
   const [savedJson, setSavedJson] = useState("");
   const hydrated = useRef(false);
@@ -77,6 +78,10 @@ export default function App() {
 
     invoke<string>("get_config_path")
       .then(setConfigPath)
+      .catch(() => {});
+
+    invoke<string>("get_app_version")
+      .then(setAppVersion)
       .catch(() => {});
 
     const pull = () =>
@@ -182,6 +187,7 @@ export default function App() {
         activeTab={activeTab}
         onTabChange={setActiveTab}
         configPath={configPath}
+        version={appVersion}
       />
 
       <main className="flex-1 flex flex-col relative overflow-hidden bg-surface">
@@ -204,6 +210,7 @@ export default function App() {
               onRefresh={handleRefresh}
               onDriverAction={handleDriverAction}
               configPath={configPath}
+              appVersion={appVersion}
             />
           )}
           {activeTab === "mapping" && (

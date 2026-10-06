@@ -12,6 +12,7 @@ interface SidebarProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
   configPath: string;
+  version: string;
 }
 
 const items = [
@@ -22,7 +23,7 @@ const items = [
   { key: "mobile", icon: Smartphone, label: "Remote Access" },
 ];
 
-export default function Sidebar({ theme, activeTab, onTabChange, configPath }: SidebarProps) {
+export default function Sidebar({ theme, activeTab, onTabChange, configPath, version }: SidebarProps) {
   return (
     <aside className="w-60 bg-surface-low border-r border-outline-variant flex flex-col justify-between shrink-0">
       <div>
@@ -30,7 +31,7 @@ export default function Sidebar({ theme, activeTab, onTabChange, configPath }: S
           <img src="/mark.png" alt="" className="w-9 h-9 rounded-sm shrink-0" />
           <div className="min-w-0">
             <h1 className="text-sm font-medium text-on-surface leading-tight">Stadia Manager</h1>
-            <span className="text-[11px] text-on-surface-variant block">v2.1.0</span>
+            <span className="text-[11px] text-on-surface-variant block">v{version}</span>
           </div>
         </div>
         <nav className="p-2 space-y-1 mt-1">
