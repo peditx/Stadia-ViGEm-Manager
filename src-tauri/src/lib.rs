@@ -115,8 +115,8 @@ fn get_mobile_token() -> Option<String> {
 }
 
 /// `async` so the UAC wait inside `netsh` never blocks a command or the webview.
-#[tauri::command(async)]
-fn open_firewall(port: u16) -> Result<String, String> {
+#[tauri::command]
+async fn open_firewall(port: u16) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || drivers::ensure_firewall_rule(port))
         .await
         .map_err(|e| e.to_string())?

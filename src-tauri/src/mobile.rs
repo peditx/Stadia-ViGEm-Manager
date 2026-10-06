@@ -217,10 +217,6 @@ fn handle(mut stream: TcpStream) -> (String, String, Vec<u8>) {
     let (status, ctype, body) = match (&req.method[..], &req.path[..]) {
         // Public read-only
         ("GET", "/api/status") => {
-            let devices = crate::controller::device_infos();
-            let count = devices.len();
-            let connection = if count > 0 { "connected" } else { "disconnected" };
-            let battery = devices.iter().map(|d| d.battery).filter(|b| *b >= 0).min().unwrap_or(-1);
             let status_obj = crate::controller::build_status();
             json_response(
                 "200 OK",
